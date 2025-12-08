@@ -1,8 +1,7 @@
 "use client";
-
-import { useEffect, useRef } from "react";
-import { Terminal as XTerminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
+import { useEffect, useRef, useCallback, useState } from "react";
+import type { Terminal as XTerminal } from "xterm";
+import type { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 
 interface TerminalProps {
@@ -13,65 +12,111 @@ export function Terminal({ onTerminalReady }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermInstance = useRef<XTerminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const isInitializedRef = useRef(false);
+  const [isClient, setIsClient] = useState(false);
+
+  const onTerminalReadyRef = useRef(onTerminalReady);
+  onTerminalReadyRef.current = onTerminalReady;
+
+  const safeFit = useCallback(() => {
+    const el = terminalRef.current;
+    const term = xtermInstance.current;
+    const fitAddon = fitAddonRef.current;
+
+    if (!el || !term || !fitAddon) return;
+    if (el.offsetWidth === 0 || el.offsetHeight === 0) return;
+
+    try {
+      const core = (term as any)._core;
+      if (core?._renderService?._renderer) {
+        fitAddon.fit();
+      }
+    } catch {
+      // Silently ignore fit errors
+    }
+  }, []);
 
   useEffect(() => {
-    // Prevent double initialization in React Strict Mode
-    if (!terminalRef.current || xtermInstance.current) return;
+    setIsClient(true);
+  }, []);
 
-    // 1. Initialize Xterm
-    const term = new XTerminal({
-      cursorBlink: true,
-      theme: {
-        background: "#09090b", // Matches zinc-950
-        foreground: "#eff0f3",
-      },
-      fontFamily: '"Menlo", "Monaco", "Courier New", monospace',
-      fontSize: 14,
-      allowProposedApi: true, // Sometimes helps with addon compat
+  useEffect(() => {
+    if (!isClient) return;
+
+    const container = terminalRef.current;
+    if (!container || isInitializedRef.current) return;
+
+    let observer: ResizeObserver | null = null;
+
+    const initTerminal = async () => {
+      if (isInitializedRef.current || !container) return;
+
+      // Dynamic imports - only load xterm in browser
+      const [{ Terminal: XTerm }, { FitAddon: Fit }] = await Promise.all([
+        import("xterm"),
+        import("xterm-addon-fit"),
+      ]);
+      if (isInitializedRef.current) return; // Double-check after async
+      isInitializedRef.current = true;
+
+      const term = new XTerm({
+        cursorBlink: true,
+        theme: { background: "#09090b", foreground: "#eff0f3" },
+        fontFamily: '"Menlo", "Monaco", "Courier New", monospace',
+        fontSize: 14,
+        allowProposedApi: true,
+        cols: 80,
+        rows: 24,
+      });
+
+      const fitAddon = new Fit();
+      term.loadAddon(fitAddon);
+
+      xtermInstance.current = term;
+      fitAddonRef.current = fitAddon;
+
+      term.open(container);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          safeFit();
+          if (onTerminalReadyRef.current) {
+            onTerminalReadyRef.current(term);
+          }
+        });
+      });
+    };
+
+    // Use ResizeObserver to detect when container has real dimensions
+    observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+
+      const { width, height } = entry.contentRect;
+
+      if (width > 0 && height > 0 && !xtermInstance.current) {
+        initTerminal();
+      } else if (xtermInstance.current) {
+        safeFit();
+      }
     });
 
-    // 2. Load Fit Addon
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    fitAddonRef.current = fitAddon;
-
-    // 3. Mount to DOM
-    term.open(terminalRef.current);
-
-    // 4. CRITICAL FIX: Delay the fit() call
-    // We wait 1 tick for the DOM to render the CSS Grid dimensions
-    setTimeout(() => {
-      try {
-        fitAddon.fit();
-      } catch (e) {
-        console.warn("Fit failed on init:", e);
-      }
-    }, 50);
-
-    xtermInstance.current = term;
-
-    // 5. Expose instance
-    if (onTerminalReady) {
-      onTerminalReady(term);
-    }
-
-    // 6. Handle Resize
-    const handleResize = () => {
-      try {
-        fitAddon.fit();
-      } catch (e) {
-        // Ignore resize errors if terminal is hidden
-      }
-    };
-    window.addEventListener("resize", handleResize);
+    observer.observe(container);
+    resizeObserverRef.current = observer;
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      term.dispose();
-      xtermInstance.current = null;
+      observer?.disconnect();
+      resizeObserverRef.current = null;
+
+      if (xtermInstance.current) {
+        xtermInstance.current.dispose();
+        xtermInstance.current = null;
+      }
       fitAddonRef.current = null;
+      isInitializedRef.current = false;
     };
-  }, [onTerminalReady]);
+  }, [isClient, safeFit]);
 
   return (
     <div

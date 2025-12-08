@@ -71,19 +71,25 @@ We are building an **Educational Bug Battle Platform** (think "LeetCode for Debu
 
 ## 4. Workflow & Decision Rules
 
-### MVP Directives
+### Current Phase: Phase 2 - "Realism & Depth"
 
-- **Scope:** Phase 1 is **Terminal Only**. Do not build a live preview iframe yet.
-- **Content:** Hardcoded challenges in `lib/content/challenges.ts`. No database backend yet.
-- **Performance:** The WebContainer boots once (Singleton). Do not destroy/recreate it on every route change if possible.
+- **Status:** Core Engine is stable. Now adding depth.
+- **Priorities:**
+  1. **Multi-File Support:** Implement a File Explorer (Sidebar) to allow editing multiple files.
+  2. **React Support:** Enable `.jsx/.tsx` compilation in WebContainers.
+  3. **Persistance:** Save user progress locally.
+- **Constraint:** Continue to avoid a real backend database. Use `localStorage` for progress.
 
-### Proposal Protocol
+### Architecture Directives
 
-1.  **Analyze:** Before writing code, state _where_ this file belongs in the architecture.
-2.  **Constraint Check:** Verify if the solution breaks the "Client-side only" constraint.
-3.  **Code:** Provide the solution.
+- **State Management:**
+  - Continue using Custom Hooks (`useShell`, `useWebContainer`) for logic.
+  - Use **Zustand** only if we need to share state between the File Explorer (Sidebar) and the Editor (Main View).
+- **UI Patterns:**
+  - Use `ResizablePanel` (shadcn) for the layout (Sidebar | Editor | Terminal).
+  - Keep the "Success Modal" flow for winning.
 
 ### Critical "Do Not"s
 
-- **DO NOT** suggest backend execution (Docker/Python) for this phase. We are committed to JS/TS + WebContainers.
-- **DO NOT** use heavy external UI libraries (MUI/Chakra) alongside shadcn. Stick to the shadcn ecosystem.
+- **DO NOT** suggest backend execution (Docker/Python). Stick to JS/TS/WebContainers.
+- **DO NOT** use heavy external UI libraries. Stick to shadcn.

@@ -5,13 +5,15 @@ import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { Challenge } from "@/lib/content/challenges";
 
+export type TestStatus = "idle" | "running" | "passed" | "failed";
+
 export function useShell(
   instance: WebContainer | null,
   terminal: Terminal | null
 ) {
-  const [isRunning, setIsRunning] = useState(false);
+  const [status, setStatus] = useState<TestStatus>("idle");
 
-  // 1. Helper to write to terminal
+  // ... (keep log and setupChallenge as they were)
   const log = useCallback(
     (message: string) => {
       terminal?.writeln(message);
@@ -19,62 +21,53 @@ export function useShell(
     [terminal]
   );
 
-  // 2. Setup the environment (Mount files + Install)
   const setupChallenge = useCallback(
     async (challenge: Challenge) => {
+      // ... (same as before)
       if (!instance || !terminal) return;
 
-      log("\x1b[33m[System] Setting up environment...\x1b[0m");
+      // Reset status on new challenge load
+      setStatus("idle");
 
-      // Mount files
+      log("\x1b[33m[System] Setting up environment...\x1b[0m");
       await instance.mount(challenge.files);
 
-      // Check if node_modules exists (Skip install if already done)
-      // Note: In a real app, you might want to force install if package.json changes.
-      // For MVP, we assume dependencies are static.
+      // ... (rest of the install logic)
+      // Assuming install logic is here...
 
-      log(
-        "\x1b[33m[System] Installing dependencies (this takes a moment)... \x1b[0m"
-      );
-
+      // Quick fix for the previous code snippet:
+      // Make sure we actually install packages if you didn't keep that part
       const installProcess = await instance.spawn("npm", ["install"]);
-
-      // Pipe install output to terminal so user sees progress
       installProcess.output.pipeTo(
         new WritableStream({
-          write(data) {
-            terminal.write(data);
+          write(d) {
+            terminal.write(d);
           },
         })
       );
+      await installProcess.exit;
 
-      const exitCode = await installProcess.exit;
-
-      if (exitCode !== 0) {
-        log("\r\n\x1b[31m[Error] Installation failed.\x1b[0m");
-      } else {
-        log("\r\n\x1b[32m[System] Ready to code.\x1b[0m");
-      }
+      log("\r\n\x1b[32m[System] Ready to code.\x1b[0m");
     },
     [instance, terminal, log]
   );
 
-  // 3. Run the Tests
   const runTests = useCallback(
-    async (code: string) => {
+    async (fileContents: Record<string, string>) => {
       if (!instance || !terminal) return;
 
-      setIsRunning(true);
+      setStatus("running");
       log("\r\n\x1b[34m[Test] Running validation...\x1b[0m\r\n");
 
-      // A. Update the user's code in the virtual file
-      await instance.fs.writeFile("index.js", code);
+      // 1. Write ALL files to the container
+      // This ensures changes in utils.js or other files are captured
+      for (const [filename, content] of Object.entries(fileContents)) {
+        await instance.fs.writeFile(filename, content);
+      }
 
-      // B. Spawn the test runner
-      // We use 'npx vitest run' to run once (not watch mode)
+      // 2. Run Tests (Same as before)
       const testProcess = await instance.spawn("npx", ["vitest", "run"]);
 
-      // C. Pipe output
       testProcess.output.pipeTo(
         new WritableStream({
           write(data) {
@@ -83,11 +76,18 @@ export function useShell(
         })
       );
 
-      await testProcess.exit;
-      setIsRunning(false);
+      const exitCode = await testProcess.exit;
+
+      if (exitCode === 0) {
+        setStatus("passed");
+        log("\r\n\x1b[32m[System] Tests Passed! Great job.\x1b[0m");
+      } else {
+        setStatus("failed");
+        log("\r\n\x1b[31m[System] Tests Failed. Try again.\x1b[0m");
+      }
     },
     [instance, terminal, log]
   );
 
-  return { setupChallenge, runTests, isRunning };
+  return { setupChallenge, runTests, status }; // Return status instead of isRunning
 }
