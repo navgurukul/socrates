@@ -63,7 +63,7 @@ We are building an **Educational Bug Battle Platform** (think "LeetCode for Debu
 
 ### Coding Guidelines
 
-- **UI Components:** Do not reinvent the wheel. Use shadcn components (`npx shadcn@latest add ...`) for buttons, dialogs, toasts, cards, and layouts.
+- **UI Components:** Do not reinvent the wheel. Use shadcn components (`pnpm dlx shadcn@latest add ...`) for buttons, dialogs, toasts, cards, and layouts.
 - **Hooks:** Encapsulate logic in custom hooks (e.g., `useWebContainer`, `useBattleRunner`). Do not dump logic inside UI components.
 - **Types:** Explicitly type all Props and Store interfaces. Avoid `any`.
 - **Styling:** Focus on a clean, dark-mode IDE aesthetic.
