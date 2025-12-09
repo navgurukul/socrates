@@ -28,6 +28,7 @@ import { ArrowLeft, Files, FileText } from "lucide-react";
 import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
+import { useMonacoSync } from "@/hooks/useMonacoSync";
 
 export default function BattleArena() {
   const params = useParams();
@@ -54,8 +55,12 @@ export default function BattleArena() {
 
   const { createFile, deletePath, renamePath } = useFileSystem(
     fileContents,
-    setFileContents
+    setFileContents,
+    instance
   );
+
+  // ✅ ACTIVATE SYNC - Runs whenever fileContents changes (typing, creating files, etc.)
+  useMonacoSync(monacoInstance, fileContents);
 
   // ✅ Capture Monaco instance on mount
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
@@ -214,6 +219,7 @@ export default function BattleArena() {
 
             <CodeEditor
               key={activeFile}
+              filePath={activeFile}
               initialCode={fileContents[activeFile] || ""}
               language={getLanguageFromFilename(activeFile)}
               onChange={handleCodeChange}

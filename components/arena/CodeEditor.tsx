@@ -4,16 +4,18 @@ import Editor, { OnMount } from "@monaco-editor/react";
 import { useRef, useEffect } from "react";
 
 interface CodeEditorProps {
+  filePath: string; // ✅ File path for model URI
   initialCode: string;
-  language?: string; // ✅ Add language prop
+  language?: string;
   onChange?: (value: string | undefined) => void;
   readOnly?: boolean;
   onMount?: OnMount;
 }
 
 export function CodeEditor({
+  filePath,
   initialCode,
-  language = "javascript", // ✅ Default to JS
+  language = "javascript",
   onChange,
   readOnly = false,
   onMount,
@@ -44,6 +46,7 @@ export function CodeEditor({
     <div className="h-full w-full">
       <Editor
         height="100%"
+        path={filePath}
         language={language}
         theme="vs-dark"
         value={initialCode}

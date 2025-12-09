@@ -210,8 +210,8 @@ export function FileTree({
     if (!inputValue.trim()) return;
 
     if (dialogMode === "create") {
-      // Create new file inside the target folder path
-      const newPath = `${targetPath}/${inputValue}`;
+      // Create new file - at root if targetPath is empty, otherwise inside folder
+      const newPath = targetPath ? `${targetPath}/${inputValue}` : inputValue;
       onCreateFile(newPath);
     } else {
       // Rename logic: reconstruct path with new name
@@ -224,13 +224,30 @@ export function FileTree({
     setDialogOpen(false);
   };
 
+  const handleRootCreate = () => {
+    setTargetPath(""); // Empty path = root level
+    setTargetType("file");
+    setDialogMode("create");
+    setInputValue("");
+    setDialogOpen(true);
+  };
+
   return (
     <>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-950">
+        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+          Files
+        </span>
+        <button
+          onClick={handleRootCreate}
+          className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors"
+          title="New file at root"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
       <ScrollArea className="h-full bg-zinc-950">
         <div className="py-2 pb-10">
-          {/* Add a "Root" creator just in case */}
-          {/* You might want a button here to create files at root level */}
-
           {tree.map((node) => (
             <FileTreeNode
               key={node.path}
@@ -255,7 +272,7 @@ export function FileTree({
             <div className="flex flex-col gap-2">
               <span className="text-xs text-zinc-500">
                 {dialogMode === "create"
-                  ? `Creating in: ${targetPath}/`
+                  ? `Creating in: ${targetPath ? targetPath + "/" : "(root)"}`
                   : `Original: ${targetPath}`}
               </span>
               <Input
