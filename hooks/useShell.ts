@@ -7,6 +7,61 @@ import { Challenge } from "@/lib/content/challenges";
 
 export type TestStatus = "idle" | "running" | "passed" | "failed";
 
+type FileSystemTree = {
+  [name: string]:
+    | { file: { contents: string } }
+    | { directory: FileSystemTree };
+};
+
+/**
+ * Converts flat file paths to nested WebContainer directory structure
+ * e.g., { "src/index.js": {...} } -> { src: { directory: { "index.js": {...} } } }
+ */
+function buildMountTree(
+  files: Record<string, { file: { contents: string } }>
+): FileSystemTree {
+  const tree: FileSystemTree = {};
+
+  for (const [path, fileData] of Object.entries(files)) {
+    const parts = path.split("/");
+    let current = tree;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isFile = i === parts.length - 1;
+
+      if (isFile) {
+        current[part] = { file: { contents: fileData.file.contents } };
+      } else {
+        if (!current[part]) {
+          current[part] = { directory: {} };
+        }
+        current = (current[part] as { directory: FileSystemTree }).directory;
+      }
+    }
+  }
+
+  return tree;
+}
+
+/**
+ * Ensures parent directories exist before writing a file
+ */
+async function ensureDir(
+  instance: WebContainer,
+  filePath: string
+): Promise<void> {
+  const parts = filePath.split("/");
+  if (parts.length <= 1) return; // No directory needed
+
+  const dirPath = parts.slice(0, -1).join("/");
+  try {
+    await instance.fs.mkdir(dirPath, { recursive: true });
+  } catch {
+    // Directory might already exist
+  }
+}
+
 export function useShell(
   instance: WebContainer | null,
   terminal: Terminal | null
@@ -25,13 +80,14 @@ export function useShell(
       if (!instance || !terminal) return;
       setStatus("idle");
 
-      // 1. Mount files first
+      // 1. Mount files first (build nested tree structure)
       log("\x1b[33m[System] Mounting file system...\x1b[0m");
-      const mountPoint: Record<string, { file: { contents: string } }> = {};
+      const flatFiles: Record<string, { file: { contents: string } }> = {};
       Object.entries(challenge.files).forEach(([name, data]) => {
-        mountPoint[name] = { file: { contents: data.file.contents } };
+        flatFiles[name] = { file: { contents: data.file.contents } };
       });
-      await instance.mount(mountPoint);
+      const mountTree = buildMountTree(flatFiles);
+      await instance.mount(mountTree);
 
       // 2. Smart Install: Check if dependencies already exist
       let needsInstall = true;
@@ -81,6 +137,7 @@ export function useShell(
 
       // 1. Sync file contents from Editor to Container
       for (const [filename, content] of Object.entries(fileContents)) {
+        await ensureDir(instance, filename);
         await instance.fs.writeFile(filename, content);
       }
 

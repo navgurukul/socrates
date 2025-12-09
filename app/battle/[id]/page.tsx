@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CodeEditor } from "@/components/arena/CodeEditor";
 import { Terminal } from "@/components/arena/Terminal";
-import { FileExplorer } from "@/components/arena/FileExplorer";
+import { FileTree } from "@/components/arena/FileTree";
+import { buildFileTree } from "@/lib/fileUtils";
 import { SuccessDialog } from "@/components/arena/SuccessDialog";
 import { AiTutor } from "@/components/arena/AITutor";
+import { ProjectBrief } from "@/components/arena/ProjectBrief";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useWebContainer } from "@/hooks/useWebContainer";
@@ -21,9 +24,10 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Files, FileText } from "lucide-react";
 import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
+import { useFileSystem } from "@/hooks/useFileSystem";
 
 export default function BattleArena() {
   const params = useParams();
@@ -47,6 +51,11 @@ export default function BattleArena() {
 
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [activeFile, setActiveFile] = useState<string>("index.js");
+
+  const { createFile, deletePath, renamePath } = useFileSystem(
+    fileContents,
+    setFileContents
+  );
 
   // ✅ Capture Monaco instance on mount
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
@@ -102,6 +111,11 @@ export default function BattleArena() {
 
   const isCurrentFileReadOnly = challenge.files[activeFile]?.readOnly || false;
 
+  // ✅ Build the tree structure efficiently
+  const fileTree = useMemo(() => {
+    return buildFileTree(Object.keys(fileContents));
+  }, [fileContents]);
+
   return (
     <main className="flex h-screen flex-col bg-zinc-950 text-white">
       <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
@@ -138,17 +152,59 @@ export default function BattleArena() {
       </header>
 
       <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize={15} minSize={10} maxSize={20}>
-          <FileExplorer
-            files={Object.keys(fileContents)}
-            activeFile={activeFile}
-            onSelect={setActiveFile}
-          />
+        <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+          <Tabs
+            defaultValue="brief"
+            className="flex flex-col h-full bg-zinc-950"
+          >
+            {/* Sidebar Tabs Header */}
+            <div className="flex items-center border-b border-zinc-800 bg-zinc-950 px-2">
+              <TabsList className="h-9 bg-transparent p-0 gap-1 w-full justify-start">
+                <TabsTrigger
+                  value="brief"
+                  className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 rounded-md h-7 px-3 text-xs flex gap-2"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Brief
+                </TabsTrigger>
+                <TabsTrigger
+                  value="files"
+                  className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 rounded-md h-7 px-3 text-xs flex gap-2"
+                >
+                  <Files className="w-3.5 h-3.5" />
+                  Files
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Tab 1: Project Brief (The Ticket) */}
+            <TabsContent
+              value="brief"
+              className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden"
+            >
+              <ProjectBrief challenge={challenge} />
+            </TabsContent>
+
+            {/* Tab 2: File Explorer */}
+            <TabsContent
+              value="files"
+              className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden"
+            >
+              <FileTree
+                tree={fileTree}
+                activeFile={activeFile}
+                onSelect={setActiveFile}
+                onCreateFile={createFile}
+                onDelete={deletePath}
+                onRename={renamePath}
+              />
+            </TabsContent>
+          </Tabs>
         </ResizablePanel>
 
         <ResizableHandle className="bg-zinc-800" />
 
-        <ResizablePanel defaultSize={45} minSize={25}>
+        <ResizablePanel defaultSize={40} minSize={25}>
           <div className="relative flex flex-col h-full bg-[#1e1e1e]">
             {isCurrentFileReadOnly && (
               <div className="absolute top-0 right-4 z-10 bg-red-900/80 text-red-200 text-xs px-2 py-1 rounded-b">
@@ -172,7 +228,7 @@ export default function BattleArena() {
           className="bg-zinc-800 hover:bg-zinc-700 transition-colors"
         />
 
-        <ResizablePanel defaultSize={40} minSize={20}>
+        <ResizablePanel defaultSize={35} minSize={20}>
           <Tabs defaultValue="console" className="flex flex-col h-full">
             <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
               <TabsTrigger
