@@ -6,6 +6,9 @@ import { CodeEditor } from "@/components/arena/CodeEditor";
 import { Terminal } from "@/components/arena/Terminal";
 import { FileExplorer } from "@/components/arena/FileExplorer";
 import { SuccessDialog } from "@/components/arena/SuccessDialog";
+import { AiTutor } from "@/components/arena/AITutor";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import { useWebContainer } from "@/hooks/useWebContainer";
 import { useTypeBridge } from "@/hooks/useTypeBridge"; // ✅ Import
 import { useShell } from "@/hooks/useShell";
@@ -31,7 +34,10 @@ export default function BattleArena() {
 
   const { instance } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
-  const { setupChallenge, runTests, status } = useShell(instance, term);
+  const { setupChallenge, runTests, status, testOutput } = useShell(
+    instance,
+    term
+  );
   const isRunning = status === "running";
 
   // ✅ IntelliSense Integration
@@ -167,11 +173,38 @@ export default function BattleArena() {
         />
 
         <ResizablePanel defaultSize={40} minSize={20}>
-          <div className="relative flex flex-col h-full bg-zinc-950">
-            <div className="flex-1 p-0 overflow-hidden">
+          <Tabs defaultValue="console" className="flex flex-col h-full">
+            <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
+              <TabsTrigger
+                value="console"
+                className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
+              >
+                Console
+              </TabsTrigger>
+              <TabsTrigger
+                value="tutor"
+                className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
+              >
+                AI Tutor
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent
+              value="console"
+              forceMount
+              className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
+            >
               <Terminal onTerminalReady={setTerm} />
-            </div>
-          </div>
+            </TabsContent>
+
+            <TabsContent
+              value="tutor"
+              forceMount
+              className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
+            >
+              <AiTutor files={fileContents} testOutput={testOutput} />
+            </TabsContent>
+          </Tabs>
         </ResizablePanel>
       </ResizablePanelGroup>
 

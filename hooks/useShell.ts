@@ -12,6 +12,8 @@ export function useShell(
   terminal: Terminal | null
 ) {
   const [status, setStatus] = useState<TestStatus>("idle");
+  // ✅ NEW: Store the full terminal log for the AI to read
+  const [testOutput, setTestOutput] = useState<string>("");
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
@@ -34,13 +36,11 @@ export function useShell(
       // 2. Smart Install: Check if dependencies already exist
       let needsInstall = true;
       try {
-        // If reading node_modules throws or returns empty, we need to install
         const dirs = await instance.fs.readdir("node_modules");
         if (dirs.length > 0) {
           needsInstall = false;
         }
       } catch (error) {
-        // node_modules likely doesn't exist
         needsInstall = true;
       }
 
@@ -75,6 +75,8 @@ export function useShell(
     async (fileContents: Record<string, string>) => {
       if (!instance || !terminal) return;
       setStatus("running");
+      setTestOutput(""); // ✅ Reset output buffer
+
       log("\r\n\x1b[34m[Test] Running validation...\x1b[0m\r\n");
 
       // 1. Sync file contents from Editor to Container
@@ -82,24 +84,30 @@ export function useShell(
         await instance.fs.writeFile(filename, content);
       }
 
-      // 2. Run Tests: Use direct binary path to avoid 'npx' overhead
-      // 'vitest' is usually inside .bin. We use the relative path.
+      // 2. Run Tests
       const testProcess = await instance.spawn("./node_modules/.bin/vitest", [
         "run",
       ]);
 
+      let outputBuffer = ""; // ✅ Local buffer to capture stream
+
       testProcess.output.pipeTo(
         new WritableStream({
           write(data) {
-            terminal.write(data);
+            terminal.write(data); // Write to user screen
+            outputBuffer += data; // ✅ Save to buffer
           },
         })
       );
+
       const exitCode = await testProcess.exit;
+
+      // ✅ Save final buffer to state
+      setTestOutput(outputBuffer);
 
       if (exitCode === 0) {
         setStatus("passed");
-        log("\r\n\x1b[32m[System] Tests Passed! \u2728\x1b[0m"); // Added sparkle emoji
+        log("\r\n\x1b[32m[System] Tests Passed! \u2728\x1b[0m");
       } else {
         setStatus("failed");
         log("\r\n\x1b[31m[System] Tests Failed.\x1b[0m");
@@ -108,5 +116,6 @@ export function useShell(
     [instance, terminal, log]
   );
 
-  return { setupChallenge, runTests, status };
+  // ✅ Return the new testOutput state
+  return { setupChallenge, runTests, status, testOutput };
 }

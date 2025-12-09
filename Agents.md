@@ -89,6 +89,18 @@ We are building an **Educational Bug Battle Platform** (think "LeetCode for Debu
   - Use `ResizablePanel` (shadcn) for the layout (Sidebar | Editor | Terminal).
   - Keep the "Success Modal" flow for winning.
 
+## 5. The AI Agent (Socratic Tutor)
+
+**Role:** Senior Mentor & Debugging Partner.
+**Model:** Gemini 1.5 Flash (via Vercel AI SDK).
+**Core Directive:** NEVER provide the direct solution/code fix.
+**Behavior:**
+
+1.  **Analyze:** Read the user's current code and the latest Vitest error output.
+2.  **Guide:** Ask leading questions ("Have you checked the array index bounds?").
+3.  **Explain:** Clarify concepts ("React state updates are asynchronous because...").
+4.  **Tone:** Encouraging, concise, and technical but accessible.
+
 ### Critical "Do Not"s
 
 - **DO NOT** suggest backend execution (Docker/Python). Stick to JS/TS/WebContainers.
