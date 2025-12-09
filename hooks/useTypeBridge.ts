@@ -5,6 +5,278 @@ import { WebContainer } from "@webcontainer/api";
 import { Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
+// Vitest module declaration - allows `import { ... } from 'vitest'`
+const VITEST_MODULE_DTS = `
+declare module 'vitest' {
+  export interface Assertion<T = any> {
+    toBe(expected: T): void;
+    toEqual(expected: T): void;
+    toBeDefined(): void;
+    toBeUndefined(): void;
+    toBeNull(): void;
+    toBeTruthy(): void;
+    toBeFalsy(): void;
+    toContain(item: any): void;
+    toHaveLength(length: number): void;
+    toThrow(error?: string | RegExp | Error): void;
+    toMatch(pattern: string | RegExp): void;
+    toBeGreaterThan(num: number): void;
+    toBeLessThan(num: number): void;
+    toBeInstanceOf(cls: any): void;
+    toHaveBeenCalled(): void;
+    toHaveBeenCalledWith(...args: any[]): void;
+    not: Assertion<T>;
+    resolves: Assertion<T>;
+    rejects: Assertion<T>;
+  }
+
+  export type ExpectStatic = {
+    <T>(actual: T): Assertion<T>;
+    extend(matchers: Record<string, any>): void;
+  };
+
+  export const expect: ExpectStatic;
+  export function describe(name: string, fn: () => void): void;
+  export function it(name: string, fn: () => void | Promise<void>): void;
+  export function test(name: string, fn: () => void | Promise<void>): void;
+  export function beforeEach(fn: () => void | Promise<void>): void;
+  export function afterEach(fn: () => void | Promise<void>): void;
+  export function beforeAll(fn: () => void | Promise<void>): void;
+  export function afterAll(fn: () => void | Promise<void>): void;
+
+  export interface Vi {
+    fn<T extends (...args: any[]) => any>(fn?: T): T;
+    spyOn<T extends object, M extends keyof T>(obj: T, method: M): any;
+    mock(path: string, factory?: () => any): void;
+    unmock(path: string): void;
+    resetAllMocks(): void;
+    clearAllMocks(): void;
+    useFakeTimers(): Vi;
+    useRealTimers(): Vi;
+    advanceTimersByTime(ms: number): void;
+    runAllTimers(): void;
+  }
+  export const vi: Vi;
+}
+`;
+
+// Testing Library module declaration
+const TESTING_LIBRARY_DTS = `
+declare module '@testing-library/react' {
+  import { ReactElement } from 'react';
+
+  export interface RenderResult {
+    container: HTMLElement;
+    baseElement: HTMLElement;
+    debug: (element?: HTMLElement) => void;
+    rerender: (ui: ReactElement) => void;
+    unmount: () => void;
+    asFragment: () => DocumentFragment;
+  }
+
+  export interface RenderOptions {
+    container?: HTMLElement;
+    baseElement?: HTMLElement;
+    wrapper?: React.ComponentType;
+  }
+
+  export function render(ui: ReactElement, options?: RenderOptions): RenderResult;
+  export function cleanup(): void;
+
+  export interface Screen {
+    getByText(text: string | RegExp): HTMLElement;
+    queryByText(text: string | RegExp): HTMLElement | null;
+    findByText(text: string | RegExp): Promise<HTMLElement>;
+    getByRole(role: string, options?: { name?: string | RegExp }): HTMLElement;
+    queryByRole(role: string, options?: { name?: string | RegExp }): HTMLElement | null;
+    getByTestId(testId: string): HTMLElement;
+    queryByTestId(testId: string): HTMLElement | null;
+    getByLabelText(text: string | RegExp): HTMLElement;
+    getByPlaceholderText(text: string | RegExp): HTMLElement;
+    getByDisplayValue(value: string | RegExp): HTMLElement;
+    getAllByText(text: string | RegExp): HTMLElement[];
+    getAllByRole(role: string): HTMLElement[];
+  }
+
+  export const screen: Screen;
+
+  export interface FireEventObject {
+    click(element: HTMLElement | Window): void;
+    change(element: HTMLElement, options?: { target?: { value?: string } }): void;
+    submit(element: HTMLElement): void;
+    focus(element: HTMLElement): void;
+    blur(element: HTMLElement): void;
+    keyDown(element: HTMLElement, options?: { key?: string; code?: string }): void;
+    keyUp(element: HTMLElement, options?: { key?: string; code?: string }): void;
+    input(element: HTMLElement, options?: { target?: { value?: string } }): void;
+  }
+
+  export const fireEvent: FireEventObject;
+
+  export interface WaitForOptions {
+    timeout?: number;
+    interval?: number;
+  }
+
+  export function waitFor<T>(callback: () => T | Promise<T>, options?: WaitForOptions): Promise<T>;
+  export function waitForElementToBeRemoved(callback: () => HTMLElement | null): Promise<void>;
+}
+`;
+
+// React module declaration
+const REACT_MODULE_DTS = `
+declare module 'react' {
+  export type ReactNode = ReactElement | string | number | boolean | null | undefined;
+  export interface ReactElement<P = any> {
+    type: string | ComponentType<P>;
+    props: P;
+    key: string | number | null;
+  }
+
+  export type FC<P = {}> = FunctionComponent<P>;
+  export interface FunctionComponent<P = {}> {
+    (props: P): ReactElement | null;
+    displayName?: string;
+  }
+
+  export type ComponentType<P = {}> = FunctionComponent<P>;
+
+  export function useState<T>(initialState: T | (() => T)): [T, (value: T | ((prev: T) => T)) => void];
+  export function useEffect(effect: () => void | (() => void), deps?: readonly any[]): void;
+  export function useCallback<T extends (...args: any[]) => any>(callback: T, deps: readonly any[]): T;
+  export function useMemo<T>(factory: () => T, deps: readonly any[]): T;
+  export function useRef<T>(initialValue: T): { current: T };
+  export function useContext<T>(context: Context<T>): T;
+  export function useReducer<S, A>(reducer: (state: S, action: A) => S, initialState: S): [S, (action: A) => void];
+  export function useLayoutEffect(effect: () => void | (() => void), deps?: readonly any[]): void;
+  export function useImperativeHandle<T>(ref: Ref<T>, init: () => T, deps?: readonly any[]): void;
+  export function useDebugValue<T>(value: T, format?: (value: T) => any): void;
+  export function useId(): string;
+  export function useDeferredValue<T>(value: T): T;
+  export function useTransition(): [boolean, (callback: () => void) => void];
+
+  export function createElement(type: any, props?: any, ...children: any[]): ReactElement;
+  export function cloneElement(element: ReactElement, props?: any, ...children: any[]): ReactElement;
+  export function createContext<T>(defaultValue: T): Context<T>;
+  export function forwardRef<T, P = {}>(render: (props: P, ref: Ref<T>) => ReactElement | null): ForwardRefExoticComponent<P & RefAttributes<T>>;
+  export function memo<P>(component: FunctionComponent<P>): FunctionComponent<P>;
+  export function lazy<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>): T;
+  export function startTransition(callback: () => void): void;
+
+  export interface Context<T> {
+    Provider: Provider<T>;
+    Consumer: Consumer<T>;
+  }
+  export interface Provider<T> {
+    (props: { value: T; children?: ReactNode }): ReactElement | null;
+  }
+  export interface Consumer<T> {
+    (props: { children: (value: T) => ReactNode }): ReactElement | null;
+  }
+  export type Ref<T> = ((instance: T | null) => void) | { current: T | null } | null;
+  export interface RefAttributes<T> {
+    ref?: Ref<T>;
+  }
+  export interface ForwardRefExoticComponent<P> extends FunctionComponent<P> {}
+
+  export const Fragment: symbol;
+  export const StrictMode: symbol;
+  export const Suspense: FunctionComponent<{ fallback?: ReactNode; children?: ReactNode }>;
+
+  // Default export for: import React from 'react'
+  const React: {
+    useState: typeof useState;
+    useEffect: typeof useEffect;
+    useCallback: typeof useCallback;
+    useMemo: typeof useMemo;
+    useRef: typeof useRef;
+    useContext: typeof useContext;
+    createElement: typeof createElement;
+    Fragment: typeof Fragment;
+    StrictMode: typeof StrictMode;
+    Suspense: typeof Suspense;
+    memo: typeof memo;
+    forwardRef: typeof forwardRef;
+    lazy: typeof lazy;
+    createContext: typeof createContext;
+  };
+  export default React;
+}
+`;
+
+// JSX namespace for intrinsic elements (div, button, span, etc.)
+const JSX_NAMESPACE_DTS = `
+declare global {
+  namespace JSX {
+    interface Element extends React.ReactElement<any, any> {}
+    interface ElementClass {
+      render(): React.ReactNode;
+    }
+    interface ElementAttributesProperty {
+      props: {};
+    }
+    interface ElementChildrenAttribute {
+      children: {};
+    }
+    type LibraryManagedAttributes<C, P> = P;
+    interface IntrinsicAttributes {
+      key?: string | number | null;
+    }
+    interface IntrinsicClassAttributes<T> {
+      ref?: React.Ref<T>;
+    }
+    interface IntrinsicElements {
+      div: any;
+      span: any;
+      p: any;
+      a: any;
+      button: any;
+      input: any;
+      form: any;
+      label: any;
+      select: any;
+      option: any;
+      textarea: any;
+      img: any;
+      ul: any;
+      ol: any;
+      li: any;
+      h1: any;
+      h2: any;
+      h3: any;
+      h4: any;
+      h5: any;
+      h6: any;
+      header: any;
+      footer: any;
+      main: any;
+      nav: any;
+      section: any;
+      article: any;
+      aside: any;
+      table: any;
+      thead: any;
+      tbody: any;
+      tr: any;
+      th: any;
+      td: any;
+      br: any;
+      hr: any;
+      pre: any;
+      code: any;
+      strong: any;
+      em: any;
+      i: any;
+      b: any;
+      svg: any;
+      path: any;
+      [elemName: string]: any;
+    }
+  }
+}
+export {};
+`;
+
 // Vitest global types declaration for `expect`, `describe`, `it`, etc.
 const VITEST_GLOBALS_DTS = `
 declare global {
@@ -176,6 +448,41 @@ export function useTypeBridge() {
         loadTypesFromContainer(instance, monaco, "@types/node"),
         loadTypesFromContainer(instance, monaco, "@testing-library/react"),
       ]);
+
+      // Inject Vitest module declaration so `import { ... } from 'vitest'` resolves
+      addExtraLib(
+        monaco,
+        VITEST_MODULE_DTS,
+        "file:///node_modules/vitest/index.d.ts"
+      );
+
+      // Inject Testing Library module declaration
+      addExtraLib(
+        monaco,
+        TESTING_LIBRARY_DTS,
+        "file:///node_modules/@testing-library/react/index.d.ts"
+      );
+
+      // Inject React module declaration
+      addExtraLib(
+        monaco,
+        REACT_MODULE_DTS,
+        "file:///node_modules/@types/react/index.d.ts"
+      );
+
+      // Also register React at the direct module path
+      addExtraLib(
+        monaco,
+        REACT_MODULE_DTS,
+        "file:///node_modules/react/index.d.ts"
+      );
+
+      // Inject JSX namespace for intrinsic elements (div, button, etc.)
+      addExtraLib(
+        monaco,
+        JSX_NAMESPACE_DTS,
+        "file:///node_modules/@types/react/jsx-runtime.d.ts"
+      );
 
       // Inject Vitest globals so `expect`, `describe`, etc. work without imports
       addExtraLib(

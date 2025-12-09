@@ -1,13 +1,17 @@
+"use client";
+
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Link } from "lucide-react"; // Import issue? Use next/link inside
-import NextLink from "next/link";
+import { ArrowRight, LayoutDashboard, Trophy } from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
+import { getNextChallengeId } from "@/lib/content/registry"; // ✅ Import helper
 
 interface SuccessDialogProps {
   isOpen: boolean;
@@ -15,29 +19,58 @@ interface SuccessDialogProps {
 }
 
 export function SuccessDialog({ isOpen, onClose }: SuccessDialogProps) {
+  const router = useRouter();
+  const params = useParams();
+  const currentId = typeof params.id === "string" ? params.id : "";
+
+  const nextChallengeId = getNextChallengeId(currentId);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-zinc-900 border-zinc-800 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center text-emerald-500">
-            🎉 Challenge Solved!
-          </DialogTitle>
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-md">
+        <DialogHeader className="flex flex-col items-center gap-4 py-4">
+          <div className="p-3 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+            <Trophy className="w-8 h-8 text-emerald-500" />
+          </div>
+          <div className="text-center space-y-2">
+            <DialogTitle className="text-2xl font-bold text-white">
+              Challenge Solved!
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 text-center max-w-[280px]">
+              Great job! You've fixed the bug and the tests are green.
+            </DialogDescription>
+          </div>
         </DialogHeader>
-        <div className="flex flex-col items-center py-4 space-y-4">
-          <p className="text-center text-zinc-300">
-            You successfully fixed the bug and passed all test cases.
-          </p>
-          {/* Future: Add Score/Time stats here */}
-        </div>
-        <DialogFooter className="sm:justify-center gap-2">
-          <Button variant="secondary" onClick={onClose}>
-            Stay Here
+
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-center mt-4">
+          <Button
+            variant="outline"
+            className="border-zinc-700 hover:bg-zinc-800 text-zinc-300 gap-2"
+            onClick={() => router.push("/")}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
           </Button>
-          <NextLink href="/">
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
-              Next Challenge
+
+          {nextChallengeId ? (
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              onClick={() => {
+                onClose(); // Close dialog first
+                router.push(`/battle/${nextChallengeId}`); // Navigate
+              }}
+            >
+              Next Level
+              <ArrowRight className="w-4 h-4" />
             </Button>
-          </NextLink>
+          ) : (
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => router.push("/")}
+            >
+              Back to Menu
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

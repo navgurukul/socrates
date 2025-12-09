@@ -13,12 +13,12 @@ import { ProjectBrief } from "@/components/arena/ProjectBrief";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useWebContainer } from "@/hooks/useWebContainer";
-import { useTypeBridge } from "@/hooks/useTypeBridge"; // ✅ Import
+import { useTypeBridge } from "@/hooks/useTypeBridge";
 import { useShell } from "@/hooks/useShell";
-import { getChallenge } from "@/lib/content/challenges";
+import { getChallenge } from "@/lib/content/registry";
 import { Terminal as XTerminal } from "xterm";
 import { Button } from "@/components/ui/button";
-import { Monaco } from "@monaco-editor/react"; // ✅ Import Type
+import { Monaco } from "@monaco-editor/react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -29,6 +29,7 @@ import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { useMonacoSync } from "@/hooks/useMonacoSync";
+import { useUserStore } from "@/lib/store/userStore";
 
 export default function BattleArena() {
   const params = useParams();
@@ -45,7 +46,10 @@ export default function BattleArena() {
   );
   const isRunning = status === "running";
 
-  // ✅ IntelliSense Integration
+  // Progress Tracking
+  const markSolved = useUserStore((state) => state.markSolved);
+
+  // IntelliSense Integration
   const { injectIntelliSense } = useTypeBridge();
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const [isEnvReady, setIsEnvReady] = useState(false); // Tracks if dependencies are installed
@@ -59,10 +63,10 @@ export default function BattleArena() {
     instance
   );
 
-  // ✅ ACTIVATE SYNC - Runs whenever fileContents changes (typing, creating files, etc.)
+  // ACTIVATE SYNC - Runs whenever fileContents changes (typing, creating files, etc.)
   useMonacoSync(monacoInstance, fileContents);
 
-  // ✅ Capture Monaco instance on mount
+  // Capture Monaco instance on mount
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     setMonacoInstance(monaco);
   };
@@ -84,7 +88,7 @@ export default function BattleArena() {
     }
   }, [challenge, router]);
 
-  // ✅ Setup Challenge & Signal Readiness
+  // Setup Challenge & Signal Readiness
   useEffect(() => {
     if (instance && term && challenge) {
       setIsEnvReady(false);
@@ -94,7 +98,7 @@ export default function BattleArena() {
     }
   }, [instance, term, challenge, setupChallenge]);
 
-  // ✅ Trigger IntelliSense Bridge
+  // Trigger IntelliSense Bridge
   // Runs only when: Environment is ready (node_modules exist) AND Monaco is mounted
   useEffect(() => {
     if (isEnvReady && instance && monacoInstance) {
@@ -102,6 +106,13 @@ export default function BattleArena() {
       injectIntelliSense(instance, monacoInstance);
     }
   }, [isEnvReady, instance, monacoInstance, injectIntelliSense]);
+
+  // Save progress when user wins
+  useEffect(() => {
+    if (status === "passed") {
+      markSolved(challengeId);
+    }
+  }, [status, challengeId, markSolved]);
 
   // Handle user typing
   const handleCodeChange = (newContent: string | undefined) => {
@@ -116,7 +127,7 @@ export default function BattleArena() {
 
   const isCurrentFileReadOnly = challenge.files[activeFile]?.readOnly || false;
 
-  // ✅ Build the tree structure efficiently
+  // Build the tree structure efficiently
   const fileTree = useMemo(() => {
     return buildFileTree(Object.keys(fileContents));
   }, [fileContents]);
@@ -224,7 +235,7 @@ export default function BattleArena() {
               language={getLanguageFromFilename(activeFile)}
               onChange={handleCodeChange}
               readOnly={isCurrentFileReadOnly}
-              onMount={handleEditorDidMount} // ✅ Pass the mounter
+              onMount={handleEditorDidMount}
             />
           </div>
         </ResizablePanel>

@@ -79,6 +79,10 @@ export function useShell(
     async (challenge: Challenge) => {
       if (!instance || !terminal) return;
       setStatus("idle");
+      setTestOutput(""); // Reset test output
+
+      // Clear terminal for fresh start
+      terminal.clear();
 
       // 1. Mount files first (build nested tree structure)
       log("\x1b[33m[System] Mounting file system...\x1b[0m");
