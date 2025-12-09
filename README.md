@@ -1,4 +1,4 @@
-# Socrates - Educational Bug Battle Platform
+# Socrates - Bug Battle Platform
 
 An interactive "LeetCode for Debugging" platform where users fix broken code in a realistic browser-based environment. Think CSS Battle meets real-world debugging challenges.
 

@@ -69,17 +69,44 @@ export function useShell(
   const [status, setStatus] = useState<TestStatus>("idle");
   // ✅ NEW: Store the full terminal log for the AI to read
   const [testOutput, setTestOutput] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // ✅ NEW State
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
     [terminal]
   );
 
+  // ✅ NEW: Function to start the dev server
+  const startDevServer = useCallback(async () => {
+    if (!instance || !terminal) return;
+
+    // 1. Set up the listener BEFORE spawning
+    instance.on("server-ready", (port, url) => {
+      console.log(`[System] Server ready on port ${port}: ${url}`);
+      setPreviewUrl(url); // Save the internal URL
+    });
+
+    // 2. Spawn the process
+    // We use npm run dev so we can run the dev server
+    // Note: This process runs indefinitely.
+    const process = await instance.spawn("npm", ["run", "dev"]);
+
+    process.output.pipeTo(
+      new WritableStream({
+        write(data) {
+          // Optional: Pipe dev server logs to terminal
+          // terminal.write(data);
+        },
+      })
+    );
+  }, [instance, terminal]);
+
   const setupChallenge = useCallback(
     async (challenge: Challenge) => {
       if (!instance || !terminal) return;
       setStatus("idle");
       setTestOutput(""); // Reset test output
+      setPreviewUrl(null); // Reset preview URL
 
       // Clear terminal for fresh start
       terminal.clear();
@@ -127,8 +154,21 @@ export function useShell(
       }
 
       log("\r\n\x1b[32m[System] Ready to code.\x1b[0m");
+
+      // ✅ Auto-start server if it's a web challenge
+      // Check if challenge has vite config or dev script (indicates a preview-able app)
+      const hasViteConfig =
+        "vite.config.js" in challenge.files ||
+        "vite.config.ts" in challenge.files;
+      const packageJson = challenge.files["package.json"]?.file?.contents || "";
+      const hasDevScript = packageJson.includes('"dev"');
+
+      if (hasViteConfig || hasDevScript) {
+        log("\x1b[35m[System] Starting Preview Server...\x1b[0m");
+        startDevServer();
+      }
     },
-    [instance, terminal, log]
+    [instance, terminal, log, startDevServer]
   );
 
   const runTests = useCallback(
@@ -178,5 +218,5 @@ export function useShell(
   );
 
   // ✅ Return the new testOutput state
-  return { setupChallenge, runTests, status, testOutput };
+  return { setupChallenge, runTests, status, testOutput, previewUrl };
 }

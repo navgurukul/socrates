@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CodeEditor } from "@/components/arena/CodeEditor";
 import { Terminal } from "@/components/arena/Terminal";
@@ -40,7 +40,7 @@ export default function BattleArena() {
 
   const { instance } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
-  const { setupChallenge, runTests, status, testOutput } = useShell(
+  const { setupChallenge, runTests, status, testOutput, previewUrl } = useShell(
     instance,
     term
   );
@@ -65,6 +65,51 @@ export default function BattleArena() {
 
   // ACTIVATE SYNC - Runs whenever fileContents changes (typing, creating files, etc.)
   useMonacoSync(monacoInstance, fileContents);
+
+  // Debounced file sync to WebContainer filesystem (for live preview)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const previousContentsRef = useRef<Record<string, string>>({});
+
+  const syncToContainer = useCallback(async () => {
+    if (!instance) return;
+
+    // Find only changed files
+    for (const [filename, content] of Object.entries(fileContents)) {
+      if (previousContentsRef.current[filename] !== content) {
+        // Ensure parent directory exists
+        const parts = filename.split("/");
+        if (parts.length > 1) {
+          const dirPath = parts.slice(0, -1).join("/");
+          try {
+            await instance.fs.mkdir(dirPath, { recursive: true });
+          } catch {
+            // Directory might already exist
+          }
+        }
+        await instance.fs.writeFile(filename, content);
+      }
+    }
+    previousContentsRef.current = { ...fileContents };
+  }, [instance, fileContents]);
+
+  // Debounced sync effect - syncs file changes to WebContainer after 300ms of no typing
+  useEffect(() => {
+    if (!instance || !isEnvReady) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      syncToContainer();
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [fileContents, instance, isEnvReady, syncToContainer]);
 
   // Capture Monaco instance on mount
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
@@ -246,38 +291,64 @@ export default function BattleArena() {
         />
 
         <ResizablePanel defaultSize={35} minSize={20}>
-          <Tabs defaultValue="console" className="flex flex-col h-full">
-            <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
-              <TabsTrigger
-                value="console"
-                className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
-              >
-                Console
-              </TabsTrigger>
-              <TabsTrigger
-                value="tutor"
-                className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
-              >
-                AI Tutor
-              </TabsTrigger>
-            </TabsList>
+          <ResizablePanelGroup direction="vertical" className="h-full">
+            {/* Top Sub-section: Live Preview */}
+            <ResizablePanel defaultSize={50} minSize={20}>
+              <div className="h-full w-full relative bg-zinc-900">
+                {previewUrl ? (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-full border-none bg-white"
+                    title="Live Preview"
+                    sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center text-zinc-500 gap-2">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-400" />
+                    <span className="text-xs">Starting Dev Server...</span>
+                  </div>
+                )}
+              </div>
+            </ResizablePanel>
 
-            <TabsContent
-              value="console"
-              forceMount
-              className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
-            >
-              <Terminal onTerminalReady={setTerm} />
-            </TabsContent>
+            <ResizableHandle className="bg-zinc-800 hover:bg-zinc-700 transition-colors" />
 
-            <TabsContent
-              value="tutor"
-              forceMount
-              className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
-            >
-              <AiTutor files={fileContents} testOutput={testOutput} />
-            </TabsContent>
-          </Tabs>
+            {/* Bottom Sub-section: Console & AI Tutor Tabs */}
+            <ResizablePanel defaultSize={50} minSize={20}>
+              <Tabs defaultValue="console" className="flex flex-col h-full">
+                <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
+                  <TabsTrigger
+                    value="console"
+                    className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
+                  >
+                    Console
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tutor"
+                    className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
+                  >
+                    AI Tutor
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent
+                  value="console"
+                  forceMount
+                  className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
+                >
+                  <Terminal onTerminalReady={setTerm} />
+                </TabsContent>
+
+                <TabsContent
+                  value="tutor"
+                  forceMount
+                  className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
+                >
+                  <AiTutor files={fileContents} testOutput={testOutput} />
+                </TabsContent>
+              </Tabs>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </ResizablePanel>
       </ResizablePanelGroup>
 

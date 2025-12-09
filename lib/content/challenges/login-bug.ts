@@ -29,6 +29,14 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    watch: false,
+    reporters: ['basic'],
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
 });`,
       },
