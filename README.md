@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Socrates - Educational Bug Battle Platform
+
+An interactive "LeetCode for Debugging" platform where users fix broken code in a realistic browser-based environment. Think CSS Battle meets real-world debugging challenges.
+
+## Features
+
+- **Browser-Based Execution** - Code runs entirely in the browser using WebContainers (no backend execution service)
+- **Monaco Editor** - VS Code-like editing experience with full IntelliSense support
+- **Multi-File Support** - File explorer sidebar for navigating and editing multiple files
+- **Real-Time Terminal** - Xterm.js terminal for viewing test output
+- **AI Tutor** - Socratic guidance from an AI assistant (never gives direct answers, only hints)
+- **Vitest Integration** - Hidden test cases validate user solutions
+
+## Tech Stack
+
+- **Framework:** Next.js 14+ (App Router)
+- **Language:** TypeScript (Strict mode)
+- **Styling:** Tailwind CSS + shadcn/ui
+- **State Management:** Zustand
+- **Editor:** Monaco Editor
+- **Terminal:** Xterm.js
+- **Sandboxing:** @webcontainer/api
+- **AI:** Vercel AI SDK with Gemini 1.5 Flash
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- pnpm (recommended)
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-## Learn More
+> **Note:** WebContainers require specific HTTP headers (`Cross-Origin-Embedder-Policy` and `Cross-Origin-Opener-Policy`). These are configured in `next.config.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+├── app/                    # Next.js App Router pages
+│   ├── api/chat/           # AI tutor API route
+│   └── battle/[id]/        # Challenge battle arena
+├── components/
+│   ├── arena/              # Battle-specific UI (Editor, Terminal, FileTree)
+│   └── ui/                 # shadcn/ui primitives
+├── hooks/                  # Custom React hooks
+│   ├── useWebContainer.ts  # WebContainer lifecycle
+│   ├── useFileSystem.ts    # Virtual file system management
+│   ├── useShell.ts         # Terminal shell integration
+│   └── useTypeBridge.ts    # Monaco IntelliSense setup
+├── lib/
+│   ├── content/            # Challenge definitions
+│   ├── engine/             # WebContainer singleton
+│   └── store/              # Zustand stores
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Creating Challenges
 
-## Deploy on Vercel
+Challenges are defined in `lib/content/challenges/`. Each challenge includes:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Buggy source files for users to fix
+- Hidden Vitest test cases for validation
+- Metadata (difficulty, description, hints)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See existing challenges for examples.
+
+## Browser Compatibility
+
+WebContainers require `SharedArrayBuffer` support, which needs:
+
+- Modern Chrome, Edge, or Firefox
+- Proper COOP/COEP headers (configured in Next.js)
+
+Safari is currently not supported.
