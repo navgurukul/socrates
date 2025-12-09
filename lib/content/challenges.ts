@@ -20,7 +20,8 @@ export const challenges: Challenge[] = [
     files: {
       "package.json": {
         file: {
-          contents: `{"name":"challenge","type":"module","dependencies":{"vitest":"latest"}}`,
+          contents: `{"name":"challenge","type":"module","dependencies":{"vitest":"latest", "@types/react": "^18.2.0",
+    "@types/node": "latest"}}`,
         },
       },
       "index.js": {
@@ -53,7 +54,8 @@ test('adds numbers correctly', () => {
     files: {
       "package.json": {
         file: {
-          contents: `{"name":"challenge","type":"module","dependencies":{"vitest":"latest","react":"^18.2.0","@testing-library/react":"^14.0.0","jsdom":"^22.1.0"}}`,
+          contents: `{"name":"challenge","type":"module","dependencies":{"vitest":"latest","react":"^18.2.0","@testing-library/react":"^14.0.0","jsdom":"^22.1.0", "@types/react": "^18.2.0",
+    "@types/node": "latest"}}`,
         },
       },
       "vitest.config.js": {
@@ -174,7 +176,8 @@ test('multiple entries should accumulate correctly', () => {
     files: {
       "package.json": {
         file: {
-          contents: `{"name":"challenge","type":"module","dependencies":{"vitest":"latest"}}`,
+          contents: `{"name":"challenge","type":"module","dependencies":{"vitest":"latest", "@types/react": "^18.2.0",
+    "@types/node": "latest"}}`,
         },
       },
       "index.js": {

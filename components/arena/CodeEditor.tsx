@@ -1,38 +1,63 @@
 "use client";
 
 import Editor, { OnMount } from "@monaco-editor/react";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 interface CodeEditorProps {
   initialCode: string;
+  language?: string; // ✅ Add language prop
   onChange?: (value: string | undefined) => void;
-  readOnly?: boolean; // New Prop
+  readOnly?: boolean;
+  onMount?: OnMount;
 }
 
 export function CodeEditor({
   initialCode,
+  language = "javascript", // ✅ Default to JS
   onChange,
   readOnly = false,
+  onMount,
 }: CodeEditorProps) {
   const editorRef = useRef<any>(null);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    if (onMount) {
+      onMount(editor, monaco);
+    }
   };
 
+  // Optional: Force update model language if it changes dynamically
+  useEffect(() => {
+    if (editorRef.current) {
+      const model = editorRef.current.getModel();
+      if (model) {
+        // We need to import monaco to use this static method,
+        // but often just re-rendering the Editor component handles it
+        // if the 'language' prop changes.
+        // The @monaco-editor/react component handles prop changes automatically.
+      }
+    }
+  }, [language]);
+
   return (
-    <div className="h-full w-full ...">
+    <div className="h-full w-full">
       <Editor
-        // ... other props
+        height="100%"
+        language={language}
+        theme="vs-dark"
+        value={initialCode}
+        onChange={onChange}
+        onMount={handleEditorDidMount}
         options={{
-          readOnly: readOnly, // Pass it here
+          readOnly: readOnly,
           minimap: { enabled: false },
           fontSize: 14,
           scrollBeyondLastLine: false,
           automaticLayout: true,
           padding: { top: 16, bottom: 16 },
-          // Optional: Render a gray background if read-only
           domReadOnly: readOnly,
+          renderValidationDecorations: "on",
         }}
       />
     </div>

@@ -13,39 +13,58 @@ export function useShell(
 ) {
   const [status, setStatus] = useState<TestStatus>("idle");
 
-  // ... (keep log and setupChallenge as they were)
   const log = useCallback(
-    (message: string) => {
-      terminal?.writeln(message);
-    },
+    (message: string) => terminal?.writeln(message),
     [terminal]
   );
 
   const setupChallenge = useCallback(
     async (challenge: Challenge) => {
-      // ... (same as before)
       if (!instance || !terminal) return;
-
-      // Reset status on new challenge load
       setStatus("idle");
 
-      log("\x1b[33m[System] Setting up environment...\x1b[0m");
-      await instance.mount(challenge.files);
+      // 1. Mount files first
+      log("\x1b[33m[System] Mounting file system...\x1b[0m");
+      const mountPoint: Record<string, { file: { contents: string } }> = {};
+      Object.entries(challenge.files).forEach(([name, data]) => {
+        mountPoint[name] = { file: { contents: data.file.contents } };
+      });
+      await instance.mount(mountPoint);
 
-      // ... (rest of the install logic)
-      // Assuming install logic is here...
+      // 2. Smart Install: Check if dependencies already exist
+      let needsInstall = true;
+      try {
+        // If reading node_modules throws or returns empty, we need to install
+        const dirs = await instance.fs.readdir("node_modules");
+        if (dirs.length > 0) {
+          needsInstall = false;
+        }
+      } catch (error) {
+        // node_modules likely doesn't exist
+        needsInstall = true;
+      }
 
-      // Quick fix for the previous code snippet:
-      // Make sure we actually install packages if you didn't keep that part
-      const installProcess = await instance.spawn("npm", ["install"]);
-      installProcess.output.pipeTo(
-        new WritableStream({
-          write(d) {
-            terminal.write(d);
-          },
-        })
-      );
-      await installProcess.exit;
+      if (needsInstall) {
+        log(
+          "\x1b[33m[System] Installing dependencies (this happens once)...\x1b[0m"
+        );
+        const installProcess = await instance.spawn("npm", ["install"]);
+        installProcess.output.pipeTo(
+          new WritableStream({
+            write(d) {
+              terminal.write(d);
+            },
+          })
+        );
+        const exitCode = await installProcess.exit;
+
+        if (exitCode !== 0) {
+          log("\r\n\x1b[31m[System] Dependency installation failed.\x1b[0m");
+          return;
+        }
+      } else {
+        log("\x1b[32m[System] Environment cached. Skipping install.\x1b[0m");
+      }
 
       log("\r\n\x1b[32m[System] Ready to code.\x1b[0m");
     },
@@ -55,18 +74,19 @@ export function useShell(
   const runTests = useCallback(
     async (fileContents: Record<string, string>) => {
       if (!instance || !terminal) return;
-
       setStatus("running");
       log("\r\n\x1b[34m[Test] Running validation...\x1b[0m\r\n");
 
-      // 1. Write ALL files to the container
-      // This ensures changes in utils.js or other files are captured
+      // 1. Sync file contents from Editor to Container
       for (const [filename, content] of Object.entries(fileContents)) {
         await instance.fs.writeFile(filename, content);
       }
 
-      // 2. Run Tests (Same as before)
-      const testProcess = await instance.spawn("npx", ["vitest", "run"]);
+      // 2. Run Tests: Use direct binary path to avoid 'npx' overhead
+      // 'vitest' is usually inside .bin. We use the relative path.
+      const testProcess = await instance.spawn("./node_modules/.bin/vitest", [
+        "run",
+      ]);
 
       testProcess.output.pipeTo(
         new WritableStream({
@@ -75,19 +95,18 @@ export function useShell(
           },
         })
       );
-
       const exitCode = await testProcess.exit;
 
       if (exitCode === 0) {
         setStatus("passed");
-        log("\r\n\x1b[32m[System] Tests Passed! Great job.\x1b[0m");
+        log("\r\n\x1b[32m[System] Tests Passed! \u2728\x1b[0m"); // Added sparkle emoji
       } else {
         setStatus("failed");
-        log("\r\n\x1b[31m[System] Tests Failed. Try again.\x1b[0m");
+        log("\r\n\x1b[31m[System] Tests Failed.\x1b[0m");
       }
     },
     [instance, terminal, log]
   );
 
-  return { setupChallenge, runTests, status }; // Return status instead of isRunning
+  return { setupChallenge, runTests, status };
 }
