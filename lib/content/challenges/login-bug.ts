@@ -193,11 +193,11 @@ import LoginForm from './App';
 
 test('stops loading on error', async () => {
   render(<LoginForm />);
-  const btn = screen.getByText('Login');
+  const btn = screen.getByRole('button', { name: 'Login' });
   fireEvent.click(btn);
   
   await waitFor(() => {
-    expect(screen.getByText('Login')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Login' })).toBeDefined();
   }, { timeout: 3000 });
 });`,
       },

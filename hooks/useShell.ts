@@ -67,9 +67,9 @@ export function useShell(
   terminal: Terminal | null
 ) {
   const [status, setStatus] = useState<TestStatus>("idle");
-  // ✅ NEW: Store the full terminal log for the AI to read
   const [testOutput, setTestOutput] = useState<string>("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // ✅ NEW State
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [iframeKey, setIframeKey] = useState<number>(0);
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
@@ -217,6 +217,17 @@ export function useShell(
     [instance, terminal, log]
   );
 
-  // ✅ Return the new testOutput state
-  return { setupChallenge, runTests, status, testOutput, previewUrl };
+  const refreshPreview = useCallback(() => {
+    setIframeKey((prev) => prev + 1);
+  }, []);
+
+  return {
+    setupChallenge,
+    runTests,
+    status,
+    testOutput,
+    previewUrl,
+    iframeKey,
+    refreshPreview,
+  };
 }

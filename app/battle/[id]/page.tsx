@@ -24,12 +24,18 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { ArrowLeft, Files, FileText } from "lucide-react";
+import { ArrowLeft, Files, FileText, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { useMonacoSync } from "@/hooks/useMonacoSync";
 import { useUserStore } from "@/lib/store/userStore";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function BattleArena() {
   const params = useParams();
@@ -40,7 +46,7 @@ export default function BattleArena() {
 
   const { instance } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
-  const { setupChallenge, runTests, status, testOutput, previewUrl } = useShell(
+  const { setupChallenge, runTests, status, testOutput, previewUrl, iframeKey, refreshPreview } = useShell(
     instance,
     term
   );
@@ -295,10 +301,33 @@ export default function BattleArena() {
             {/* Top Sub-section: Live Preview */}
             <ResizablePanel defaultSize={50} minSize={20}>
               <div className="h-full w-full relative bg-zinc-900">
+                {/* Preview Header with refresh control */}
+                <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-2 py-1 bg-zinc-900/90 border-b border-zinc-800">
+                  <span className="text-xs text-zinc-500">Preview</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-zinc-400 hover:text-white"
+                          onClick={refreshPreview}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Reload Preview</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
                 {previewUrl ? (
                   <iframe
+                    key={iframeKey}
                     src={previewUrl}
-                    className="w-full h-full border-none bg-white"
+                    className="w-full h-full border-none bg-white pt-7"
                     title="Live Preview"
                     sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
                   />
