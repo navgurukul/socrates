@@ -4,6 +4,9 @@ import { useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("TypeBridge");
 
 // Vitest module declaration - allows `import { ... } from 'vitest'`
 const VITEST_MODULE_DTS = `
@@ -372,8 +375,8 @@ export function useTypeBridge() {
 
               // If this is the main entry point, check if it needs a module declaration
               if (fullPath.endsWith(normalizedTypesEntry)) {
-                console.log(
-                  `[TypeBridge] Found entry point for ${packageName}: ${fullPath}`
+                logger.debug(
+                  `Found entry point for ${packageName}: ${fullPath}`
                 );
               }
             }
@@ -381,11 +384,11 @@ export function useTypeBridge() {
         };
 
         await processDir(packagePath, 0);
-        console.log(
-          `[TypeBridge] Linked ${packageName} (Entry: ${typesEntry})`
+        logger.debug(
+          `Linked ${packageName} (Entry: ${typesEntry})`
         );
       } catch (e) {
-        console.error(`[TypeBridge] Failed ${packageName}`, e);
+        logger.error(`Failed ${packageName}`, e);
       }
     },
     [addExtraLib]
@@ -393,7 +396,7 @@ export function useTypeBridge() {
 
   const injectIntelliSense = useCallback(
     async (instance: WebContainer, monaco: Monaco) => {
-      console.log("[TypeBridge] Starting injection...");
+      logger.debug("Starting injection...");
 
       const compilerOptions = {
         target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -498,7 +501,7 @@ export function useTypeBridge() {
         model.setValue(value);
       });
 
-      console.log("[TypeBridge] Injection complete.");
+      logger.debug("Injection complete.");
     },
     [loadTypesFromContainer, addExtraLib]
   );

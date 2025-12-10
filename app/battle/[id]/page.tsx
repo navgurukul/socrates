@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { CodeEditor } from "@/components/arena/CodeEditor";
 import { Terminal } from "@/components/arena/Terminal";
 import { FileTree } from "@/components/arena/FileTree";
@@ -15,18 +15,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useWebContainer } from "@/hooks/useWebContainer";
 import { useTypeBridge } from "@/hooks/useTypeBridge";
 import { useShell } from "@/hooks/useShell";
-import { getChallenge } from "@/lib/content/registry";
-import { Challenge } from "@/lib/content/types";
+import { useChallengeLoader } from "@/hooks/useChallengeLoader";
+import { useContainerSync } from "@/hooks/useContainerSync";
 import { Terminal as XTerminal } from "xterm";
 import { Button } from "@/components/ui/button";
 import { Monaco, OnMount } from "@monaco-editor/react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { ArrowLeft, Files, FileText, RefreshCw } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
@@ -41,26 +41,11 @@ import {
 
 export default function BattleArena() {
   const params = useParams();
-  const router = useRouter();
 
   const challengeId = typeof params.id === "string" ? params.id : "";
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
+  const { challenge, isLoading: isLoadingChallenge } = useChallengeLoader(challengeId);
 
-  // Load challenge data
-  useEffect(() => {
-    if (challengeId) {
-      getChallenge(challengeId).then((data) => {
-        setChallenge(data);
-        setIsLoadingChallenge(false);
-        if (!data) {
-          router.push("/");
-        }
-      });
-    }
-  }, [challengeId, router]);
-
-  const { instance } = useWebContainer();
+  const { instance, error: containerError } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
   const {
     setupChallenge,
@@ -94,49 +79,7 @@ export default function BattleArena() {
   useMonacoSync(monacoInstance, fileContents);
 
   // Debounced file sync to WebContainer filesystem (for live preview)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const previousContentsRef = useRef<Record<string, string>>({});
-
-  const syncToContainer = useCallback(async () => {
-    if (!instance) return;
-
-    // Find only changed files
-    for (const [filename, content] of Object.entries(fileContents)) {
-      if (previousContentsRef.current[filename] !== content) {
-        // Ensure parent directory exists
-        const parts = filename.split("/");
-        if (parts.length > 1) {
-          const dirPath = parts.slice(0, -1).join("/");
-          try {
-            await instance.fs.mkdir(dirPath, { recursive: true });
-          } catch {
-            // Directory might already exist
-          }
-        }
-        await instance.fs.writeFile(filename, content);
-      }
-    }
-    previousContentsRef.current = { ...fileContents };
-  }, [instance, fileContents]);
-
-  // Debounced sync effect - syncs file changes to WebContainer after 300ms of no typing
-  useEffect(() => {
-    if (!instance || !isEnvReady) return;
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      syncToContainer();
-    }, 300);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [fileContents, instance, isEnvReady, syncToContainer]);
+  useContainerSync(instance, fileContents, isEnvReady);
 
   // Capture Monaco instance on mount
   const handleEditorDidMount: OnMount = (_editor, monaco) => {
@@ -200,15 +143,40 @@ export default function BattleArena() {
     return buildFileTree(Object.keys(fileContents));
   }, [fileContents]);
 
-  if (isLoadingChallenge) {
+  // Handle WebContainer error
+  if (containerError) {
     return (
       <main className="flex h-screen items-center justify-center bg-zinc-950 text-white">
-        <div className="flex flex-col items-center gap-4">
-          <Spinner className="size-8 text-emerald-400" />
-          <span className="text-zinc-400">Loading challenge...</span>
+        <div className="flex flex-col items-center gap-6 max-w-2xl px-8">
+          <h1 className="text-3xl font-bold text-red-400">Browser Not Supported</h1>
+          <div className="text-center space-y-4">
+            <p className="text-zinc-300">
+              WebContainer failed to initialize. This could be due to:
+            </p>
+            <ul className="text-left text-zinc-400 space-y-2">
+              <li>• Missing security headers (COOP/COEP)</li>
+              <li>• Unsupported browser (requires Chromium-based browsers)</li>
+              <li>• SharedArrayBuffer not available</li>
+            </ul>
+            <p className="text-zinc-500 text-sm mt-4">
+              <strong>Error:</strong> {containerError}
+            </p>
+            <p className="text-zinc-400">
+              Please try using Chrome, Edge, or another Chromium-based browser.
+            </p>
+          </div>
+          <Link href="/">
+            <Button className="bg-emerald-600 hover:bg-emerald-700">
+              Back to Dashboard
+            </Button>
+          </Link>
         </div>
       </main>
     );
+  }
+
+  if (isLoadingChallenge) {
+    return <LoadingScreen message="Loading challenge..." />;
   }
 
   if (!challenge) return null;

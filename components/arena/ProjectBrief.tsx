@@ -3,7 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+import { DifficultyBadge } from "@/components/ui/difficulty-badge";
 import { Challenge } from "@/lib/content/types";
 
 interface ProjectBriefProps {
@@ -16,28 +16,7 @@ export function ProjectBrief({ challenge }: ProjectBriefProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900">
         <h3 className="text-xs font-semibold text-zinc-400">Project Brief</h3>
-        <Badge
-          variant="outline"
-          className={`
-            ${
-              challenge.difficulty === "Easy"
-                ? "text-emerald-400 border-emerald-400/30"
-                : ""
-            }
-            ${
-              challenge.difficulty === "Medium"
-                ? "text-amber-400 border-amber-400/30"
-                : ""
-            }
-            ${
-              challenge.difficulty === "Hard"
-                ? "text-red-400 border-red-400/30"
-                : ""
-            }
-          `}
-        >
-          {challenge.difficulty}
-        </Badge>
+        <DifficultyBadge difficulty={challenge.difficulty} />
       </div>
 
       {/* Content */}

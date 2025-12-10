@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, memo } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -58,19 +58,25 @@ interface FileTreeNodeProps {
   ) => void;
 }
 
-function FileTreeNode({
+const FileTreeNode = memo(function FileTreeNode({
   node,
   level,
   activeFile,
   onSelect,
   onAction,
 }: FileTreeNodeProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Initialize isOpen based on whether active file is in this folder's subtree
+  const [isOpen, setIsOpen] = useState(() => {
+    return node.type === "folder" && activeFile.startsWith(node.path + "/");
+  });
   const isSelected = node.path === activeFile;
 
-  if (activeFile.startsWith(node.path + "/") && !isOpen) {
-    setIsOpen(true);
-  }
+  // Auto-expand folder when active file is within its subtree
+  useEffect(() => {
+    if (node.type === "folder" && activeFile.startsWith(node.path + "/")) {
+      setIsOpen(true);
+    }
+  }, [activeFile, node.path, node.type]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -159,7 +165,7 @@ function FileTreeNode({
       )}
     </div>
   );
-}
+});
 
 // --------------------------------------------------------
 // MAIN EXPORTED COMPONENT
@@ -188,6 +194,10 @@ export function FileTree({
   const [targetPath, setTargetPath] = useState("");
   const [targetType, setTargetType] = useState<"file" | "folder">("file");
   const [inputValue, setInputValue] = useState("");
+  
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ path: string; type: "file" | "folder" } | null>(null);
 
   const handleAction = (
     action: "create" | "delete" | "rename",
@@ -195,7 +205,8 @@ export function FileTree({
     type: "file" | "folder"
   ) => {
     if (action === "delete") {
-      if (confirm(`Delete ${path}?`)) onDelete(path, type);
+      setDeleteTarget({ path, type });
+      setDeleteDialogOpen(true);
       return;
     }
 
@@ -222,6 +233,14 @@ export function FileTree({
       onRename(targetPath, newPath, targetType);
     }
     setDialogOpen(false);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      onDelete(deleteTarget.path, deleteTarget.type);
+      setDeleteDialogOpen(false);
+      setDeleteTarget(null);
+    }
   };
 
   const handleRootCreate = () => {
@@ -294,6 +313,37 @@ export function FileTree({
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               {dialogMode === "create" ? "Create" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {deleteTarget?.type === "folder" ? "Folder" : "File"}?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-zinc-400">
+              Are you sure you want to delete{" "}
+              <span className="text-zinc-200 font-mono">{deleteTarget?.path}</span>?
+            </p>
+            <p className="text-zinc-500 text-sm mt-2">
+              This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

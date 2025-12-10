@@ -4,6 +4,10 @@ import { useState, useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { Challenge } from "@/lib/content/types";
+import { ensureDirectory } from "@/lib/fileUtils";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("System");
 
 export type TestStatus = "idle" | "running" | "passed" | "failed";
 
@@ -44,24 +48,6 @@ function buildMountTree(
   return tree;
 }
 
-/**
- * Ensures parent directories exist before writing a file
- */
-async function ensureDir(
-  instance: WebContainer,
-  filePath: string
-): Promise<void> {
-  const parts = filePath.split("/");
-  if (parts.length <= 1) return; // No directory needed
-
-  const dirPath = parts.slice(0, -1).join("/");
-  try {
-    await instance.fs.mkdir(dirPath, { recursive: true });
-  } catch {
-    // Directory might already exist
-  }
-}
-
 export function useShell(
   instance: WebContainer | null,
   terminal: Terminal | null
@@ -82,7 +68,7 @@ export function useShell(
 
     // 1. Set up the listener BEFORE spawning
     instance.on("server-ready", (port, url) => {
-      console.log(`[System] Server ready on port ${port}: ${url}`);
+      logger.debug(`Server ready on port ${port}: ${url}`);
       setPreviewUrl(url); // Save the internal URL
     });
 
@@ -181,7 +167,7 @@ export function useShell(
 
       // 1. Sync file contents from Editor to Container
       for (const [filename, content] of Object.entries(fileContents)) {
-        await ensureDir(instance, filename);
+        await ensureDirectory(instance.fs, filename);
         await instance.fs.writeFile(filename, content);
       }
 

@@ -5,6 +5,33 @@ export interface TreeNode {
   children?: TreeNode[];
 }
 
+/**
+ * Filesystem interface compatible with WebContainer API
+ */
+export interface FileSystem {
+  mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+}
+
+/**
+ * Ensures parent directories exist before writing a file
+ * @param fs - Filesystem interface with mkdir method
+ * @param filePath - Full path to the file
+ */
+export async function ensureDirectory(
+  fs: FileSystem,
+  filePath: string
+): Promise<void> {
+  const parts = filePath.split("/");
+  if (parts.length <= 1) return; // No directory needed (root level file)
+
+  const dirPath = parts.slice(0, -1).join("/");
+  try {
+    await fs.mkdir(dirPath, { recursive: true });
+  } catch {
+    // Directory might already exist - this is not an error
+  }
+}
+
 export function buildFileTree(files: string[]): TreeNode[] {
   const root: TreeNode[] = [];
 

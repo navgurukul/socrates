@@ -2,7 +2,7 @@
 
 import Editor, { OnMount } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { useRef, useEffect } from "react";
+import { useRef, memo } from "react";
 
 interface CodeEditorProps {
   filePath: string; // ✅ File path for model URI
@@ -13,7 +13,7 @@ interface CodeEditorProps {
   onMount?: OnMount;
 }
 
-export function CodeEditor({
+export const CodeEditor = memo(function CodeEditor({
   filePath,
   initialCode,
   language = "javascript",
@@ -29,19 +29,6 @@ export function CodeEditor({
       onMount(editor, monaco);
     }
   };
-
-  // Optional: Force update model language if it changes dynamically
-  useEffect(() => {
-    if (editorRef.current) {
-      const model = editorRef.current.getModel();
-      if (model) {
-        // We need to import monaco to use this static method,
-        // but often just re-rendering the Editor component handles it
-        // if the 'language' prop changes.
-        // The @monaco-editor/react component handles prop changes automatically.
-      }
-    }
-  }, [language]);
 
   return (
     <div className="h-full w-full">
@@ -66,4 +53,4 @@ export function CodeEditor({
       />
     </div>
   );
-}
+});

@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Play } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { LoadingScreen } from "@/components/ui/loading-screen";
+import { DifficultyBadge } from "@/components/ui/difficulty-badge";
 import { useUserStore } from "@/lib/store/userStore";
 
 export default function Dashboard() {
@@ -29,19 +30,6 @@ export default function Dashboard() {
   }, []);
   // Safe access to store in case it's not fully set up yet
   const solvedIds = useUserStore((state) => state.solvedChallengeIds) || [];
-
-  const getDifficultyColor = (diff: string) => {
-    switch (diff) {
-      case "Easy":
-        return "text-emerald-400 border-emerald-400/20 bg-emerald-400/10";
-      case "Medium":
-        return "text-amber-400 border-amber-400/20 bg-amber-400/10";
-      case "Hard":
-        return "text-red-400 border-red-400/20 bg-red-400/10";
-      default:
-        return "text-zinc-400";
-    }
-  };
 
   return (
     <main className="min-h-screen bg-zinc-950 p-8 text-white">
@@ -60,9 +48,7 @@ export default function Dashboard() {
 
         {/* Challenge Grid */}
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <Spinner className="size-8 text-emerald-400" />
-          </div>
+          <LoadingScreen fullScreen={false} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {challenges.map((challenge) => {
@@ -91,14 +77,7 @@ export default function Dashboard() {
                       </div>
 
                       {/* Difficulty Badge */}
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] px-2 h-5 font-mono uppercase tracking-widest ${getDifficultyColor(
-                          challenge.difficulty
-                        )}`}
-                      >
-                        {challenge.difficulty}
-                      </Badge>
+                      <DifficultyBadge difficulty={challenge.difficulty} />
                     </div>
 
                     <CardTitle className="text-xl text-white group-hover:text-emerald-400 transition-colors flex items-center gap-2">
