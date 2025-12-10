@@ -1,13 +1,13 @@
 import { Challenge } from "./types";
 import { loginBugChallenge } from "./challenges/login-bug";
 import { shoppingCartChallenge } from "./challenges/shopping-cart";
+import { slowRenderChallenge } from "./challenges/slow-render";
 
 // 1. Import new challenges here as you create them
 const rawChallenges: Challenge[] = [
   loginBugChallenge,
   shoppingCartChallenge,
-  // level2Challenge,
-  // level3Challenge...
+  slowRenderChallenge,
 ];
 
 // 2. Export Helper Functions

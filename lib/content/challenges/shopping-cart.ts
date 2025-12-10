@@ -4,7 +4,7 @@ export const shoppingCartChallenge: Challenge = {
   id: "shopping-cart-bug",
   title: "Stale Cart Total",
   description: `
-# 🛒 Bug Report: Cart Total Not Updating
+# Bug Report: Cart Total Not Updating
 
 **Severity:** High  
 **Component:** \`Cart.tsx\`
@@ -180,7 +180,6 @@ export default function Cart() {
   const { items, removeItem } = useCart();
   const [total, setTotal] = useState(0);
 
-  // 🐛 BUG: Missing dependency in useEffect
   useEffect(() => {
     const newTotal = items.reduce((acc, item) => acc + (item.price * item.qty), 0);
     setTotal(newTotal);
