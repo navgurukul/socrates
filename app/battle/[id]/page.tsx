@@ -46,10 +46,15 @@ export default function BattleArena() {
 
   const { instance } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
-  const { setupChallenge, runTests, status, testOutput, previewUrl, iframeKey, refreshPreview } = useShell(
-    instance,
-    term
-  );
+  const {
+    setupChallenge,
+    runTests,
+    status,
+    testOutput,
+    previewUrl,
+    iframeKey,
+    refreshPreview,
+  } = useShell(instance, term);
   const isRunning = status === "running";
 
   // Progress Tracking
@@ -322,7 +327,7 @@ export default function BattleArena() {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                
+
                 {previewUrl ? (
                   <iframe
                     key={iframeKey}
