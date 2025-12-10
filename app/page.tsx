@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Lock, Play } from "lucide-react";
+import { CheckCircle2, Play } from "lucide-react";
 import { useUserStore } from "@/lib/store/userStore";
 
 export default function Dashboard() {

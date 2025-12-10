@@ -18,7 +18,7 @@ import { useShell } from "@/hooks/useShell";
 import { getChallenge } from "@/lib/content/registry";
 import { Terminal as XTerminal } from "xterm";
 import { Button } from "@/components/ui/button";
-import { Monaco } from "@monaco-editor/react";
+import { Monaco, OnMount } from "@monaco-editor/react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -112,7 +112,7 @@ export default function BattleArena() {
   }, [fileContents, instance, isEnvReady, syncToContainer]);
 
   // Capture Monaco instance on mount
-  const handleEditorDidMount = (editor: any, monaco: Monaco) => {
+  const handleEditorDidMount: OnMount = (_editor, monaco) => {
     setMonacoInstance(monaco);
   };
 
@@ -168,14 +168,14 @@ export default function BattleArena() {
     }));
   };
 
-  if (!challenge) return null;
-
-  const isCurrentFileReadOnly = challenge.files[activeFile]?.readOnly || false;
+  const isCurrentFileReadOnly = challenge?.files[activeFile]?.readOnly || false;
 
   // Build the tree structure efficiently
   const fileTree = useMemo(() => {
     return buildFileTree(Object.keys(fileContents));
   }, [fileContents]);
+
+  if (!challenge) return null;
 
   return (
     <main className="flex h-screen flex-col bg-zinc-950 text-white">

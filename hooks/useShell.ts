@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
-import { Challenge } from "@/lib/content/challenges";
+import { Challenge } from "@/lib/content/types";
 
 export type TestStatus = "idle" | "running" | "passed" | "failed";
 

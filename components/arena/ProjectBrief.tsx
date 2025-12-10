@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Challenge } from "@/lib/content/challenges";
+import { Challenge } from "@/lib/content/types";
 
 interface ProjectBriefProps {
   challenge: Challenge;

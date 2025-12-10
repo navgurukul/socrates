@@ -28,6 +28,7 @@ export function Terminal({ onTerminalReady }: TerminalProps) {
     if (el.offsetWidth === 0 || el.offsetHeight === 0) return;
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const core = (term as any)._core;
       if (core?._renderService?._renderer) {
         fitAddon.fit();

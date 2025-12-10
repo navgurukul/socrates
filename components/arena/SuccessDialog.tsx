@@ -37,7 +37,7 @@ export function SuccessDialog({ isOpen, onClose }: SuccessDialogProps) {
               Challenge Solved!
             </DialogTitle>
             <DialogDescription className="text-zinc-400 text-center max-w-[280px]">
-              Great job! You've fixed the bug and the tests are green.
+              Great job! You&apos;ve fixed the bug and the tests are green.
             </DialogDescription>
           </div>
         </DialogHeader>
