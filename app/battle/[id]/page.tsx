@@ -16,6 +16,7 @@ import { useWebContainer } from "@/hooks/useWebContainer";
 import { useTypeBridge } from "@/hooks/useTypeBridge";
 import { useShell } from "@/hooks/useShell";
 import { getChallenge } from "@/lib/content/registry";
+import { Challenge } from "@/lib/content/types";
 import { Terminal as XTerminal } from "xterm";
 import { Button } from "@/components/ui/button";
 import { Monaco, OnMount } from "@monaco-editor/react";
@@ -25,6 +26,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { ArrowLeft, Files, FileText, RefreshCw } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
@@ -42,7 +44,21 @@ export default function BattleArena() {
   const router = useRouter();
 
   const challengeId = typeof params.id === "string" ? params.id : "";
-  const challenge = getChallenge(challengeId);
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
+
+  // Load challenge data
+  useEffect(() => {
+    if (challengeId) {
+      getChallenge(challengeId).then((data) => {
+        setChallenge(data);
+        setIsLoadingChallenge(false);
+        if (!data) {
+          router.push("/");
+        }
+      });
+    }
+  }, [challengeId, router]);
 
   const { instance } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
@@ -128,21 +144,19 @@ export default function BattleArena() {
   };
 
   useEffect(() => {
-    if (!challenge) {
-      router.push("/");
-    } else {
-      const initialFiles: Record<string, string> = {};
-      Object.entries(challenge.files).forEach(([name, data]) => {
-        initialFiles[name] = data.file.contents;
-      });
-      setFileContents(initialFiles);
+    if (!challenge || isLoadingChallenge) return;
 
-      const firstFile =
-        Object.keys(initialFiles).find((f) => f.endsWith(".js")) ||
-        Object.keys(initialFiles)[0];
-      setActiveFile(firstFile);
-    }
-  }, [challenge, router]);
+    const initialFiles: Record<string, string> = {};
+    Object.entries(challenge.files).forEach(([name, data]) => {
+      initialFiles[name] = data.file.contents;
+    });
+    setFileContents(initialFiles);
+
+    const firstFile =
+      Object.keys(initialFiles).find((f) => f.endsWith(".js")) ||
+      Object.keys(initialFiles)[0];
+    setActiveFile(firstFile);
+  }, [challenge, isLoadingChallenge]);
 
   // Setup Challenge & Signal Readiness
   useEffect(() => {
@@ -185,6 +199,17 @@ export default function BattleArena() {
   const fileTree = useMemo(() => {
     return buildFileTree(Object.keys(fileContents));
   }, [fileContents]);
+
+  if (isLoadingChallenge) {
+    return (
+      <main className="flex h-screen items-center justify-center bg-zinc-950 text-white">
+        <div className="flex flex-col items-center gap-4">
+          <Spinner className="size-8 text-emerald-400" />
+          <span className="text-zinc-400">Loading challenge...</span>
+        </div>
+      </main>
+    );
+  }
 
   if (!challenge) return null;
 
