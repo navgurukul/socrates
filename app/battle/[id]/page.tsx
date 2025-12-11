@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { CodeEditor } from "@/components/arena/CodeEditor";
 import { Terminal } from "@/components/arena/Terminal";
@@ -32,6 +32,7 @@ import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { useMonacoSync } from "@/hooks/useMonacoSync";
 import { useUserStore } from "@/lib/store/userStore";
+import { submitSuccess } from "@/lib/actions/progress";
 import {
   Tooltip,
   TooltipContent,
@@ -43,7 +44,8 @@ export default function BattleArena() {
   const params = useParams();
 
   const challengeId = typeof params.id === "string" ? params.id : "";
-  const { challenge, isLoading: isLoadingChallenge } = useChallengeLoader(challengeId);
+  const { challenge, isLoading: isLoadingChallenge } =
+    useChallengeLoader(challengeId);
 
   const { instance, error: containerError } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
@@ -60,6 +62,7 @@ export default function BattleArena() {
 
   // Progress Tracking
   const markSolved = useUserStore((state) => state.markSolved);
+  const attemptsRef = useRef(0); // Track attempts without causing re-renders
 
   // IntelliSense Integration
   const { injectIntelliSense } = useTypeBridge();
@@ -124,8 +127,15 @@ export default function BattleArena() {
   useEffect(() => {
     if (status === "passed") {
       markSolved(challengeId);
+
+      // Save to Cloud (fire-and-forget)
+      submitSuccess(challengeId, fileContents, attemptsRef.current).then(
+        (res) => {
+          if (res.error) console.error("Cloud save failed:", res.error);
+        }
+      );
     }
-  }, [status, challengeId, markSolved]);
+  }, [status, challengeId, markSolved, fileContents]);
 
   // Handle user typing
   const handleCodeChange = (newContent: string | undefined) => {
@@ -148,7 +158,9 @@ export default function BattleArena() {
     return (
       <main className="flex h-screen items-center justify-center bg-zinc-950 text-white">
         <div className="flex flex-col items-center gap-6 max-w-2xl px-8">
-          <h1 className="text-3xl font-bold text-red-400">Browser Not Supported</h1>
+          <h1 className="text-3xl font-bold text-red-400">
+            Browser Not Supported
+          </h1>
           <div className="text-center space-y-4">
             <p className="text-zinc-300">
               WebContainer failed to initialize. This could be due to:
@@ -205,7 +217,10 @@ export default function BattleArena() {
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            onClick={() => runTests(fileContents)}
+            onClick={() => {
+              attemptsRef.current += 1;
+              runTests(fileContents);
+            }}
             disabled={!instance || isRunning}
             className={
               isRunning ? "opacity-80" : "bg-emerald-600 hover:bg-emerald-700"
