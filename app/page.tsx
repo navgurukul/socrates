@@ -75,6 +75,9 @@ export default function Dashboard() {
         <Suspense fallback={null}>
           <AuthErrorBanner />
         </Suspense>
+        <div className="w-full flex justify-end">
+          <AuthButton />
+        </div>
 
         {/* Header */}
         <div className="mb-16 text-center space-y-4">
@@ -86,7 +89,6 @@ export default function Dashboard() {
             <br />
             Simulated environment. Real skills.
           </p>
-          <AuthButton />
         </div>
 
         {/* Challenge Grid */}
