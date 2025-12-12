@@ -97,7 +97,7 @@ export function useShell(
       // Clear terminal for fresh start
       terminal.clear();
 
-      // 1. Mount files first (build nested tree structure)
+      // 1. Mount files (fast single operation)
       log("\x1b[33m[System] Mounting file system...\x1b[0m");
       const flatFiles: Record<string, { file: { contents: string } }> = {};
       Object.entries(challenge.files).forEach(([name, data]) => {
@@ -106,22 +106,28 @@ export function useShell(
       const mountTree = buildMountTree(flatFiles);
       await instance.mount(mountTree);
 
-      // 2. Smart Install: Check if dependencies already exist
+      // 2. Check if dependencies need to be installed
       let needsInstall = true;
       try {
         const dirs = await instance.fs.readdir("node_modules");
-        if (dirs.length > 0) {
+        if (dirs.length > 5) {
           needsInstall = false;
         }
-      } catch (error) {
+      } catch {
         needsInstall = true;
       }
 
       if (needsInstall) {
-        log(
-          "\x1b[33m[System] Installing dependencies (this happens once)...\x1b[0m"
-        );
-        const installProcess = await instance.spawn("npm", ["install"]);
+        log("\x1b[33m[System] Installing dependencies...\x1b[0m");
+
+        // Use npm ci for faster, cleaner installs when possible
+        const installProcess = await instance.spawn("npm", [
+          "install",
+          "--prefer-offline",
+          "--no-audit",
+          "--no-fund",
+        ]);
+
         installProcess.output.pipeTo(
           new WritableStream({
             write(d) {
