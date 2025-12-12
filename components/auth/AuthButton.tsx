@@ -2,7 +2,7 @@
 
 import { useAuthContext } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, LogIn } from "lucide-react";
+import { LogOut, LogIn } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 
 export function AuthButton() {

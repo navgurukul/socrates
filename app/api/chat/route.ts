@@ -1,8 +1,8 @@
 import { streamText, convertToModelMessages } from "ai";
-import { models, aiConfig } from "@/lib/ai/models";
+import { models } from "@/lib/ai/models";
 
 // Allow streaming responses up to 30 seconds
-export const maxDuration = aiConfig.maxDuration;
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {

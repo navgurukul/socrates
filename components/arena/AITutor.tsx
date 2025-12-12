@@ -155,7 +155,7 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
           {messages.length === 0 && !reviewData && (
             <div className="flex flex-col items-center justify-center h-[300px] text-zinc-500 text-sm">
               <Bot className="w-8 h-8 mb-3 opacity-20" />
-              <p>I'm ready to help!</p>
+              <p>I&apos;m ready to help!</p>
               <p className="text-xs mt-1 opacity-50">
                 Run tests to see errors.
               </p>

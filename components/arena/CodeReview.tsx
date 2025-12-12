@@ -9,8 +9,14 @@ interface CodeReviewProps {
   challengeId: string;
 }
 
+interface ReviewData {
+  praise: string;
+  critique?: string;
+  tip: string;
+}
+
 export function CodeReview({ code, challengeId }: CodeReviewProps) {
-  const [review, setReview] = useState<any>(null);
+  const [review, setReview] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
 
   console.log("Code:", code);
