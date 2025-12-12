@@ -95,6 +95,9 @@ importers:
       xterm-addon-fit:
         specifier: ^0.8.0
         version: 0.8.0(xterm@5.3.0)
+      zod:
+        specifier: ^4.1.13
+        version: 4.1.13
       zustand:
         specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))

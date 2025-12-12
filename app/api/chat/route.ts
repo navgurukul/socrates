@@ -1,8 +1,8 @@
-import { google } from "@ai-sdk/google";
 import { streamText, convertToModelMessages } from "ai";
+import { models, aiConfig } from "@/lib/ai/models";
 
 // Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+export const maxDuration = aiConfig.maxDuration;
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     console.log("[Chat API] Messages:", JSON.stringify(messages, null, 2));
 
     const result = await streamText({
-      model: google("gemini-2.5-flash-lite"),
+      model: models.tutor,
       system: systemPrompt,
       messages: convertToModelMessages(messages),
     });

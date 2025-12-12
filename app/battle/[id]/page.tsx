@@ -394,7 +394,11 @@ export default function BattleArena() {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <SuccessDialog isOpen={status === "passed"} onClose={() => {}} />
+      <SuccessDialog
+        isOpen={status === "passed"}
+        onClose={() => {}}
+        code={fileContents}
+      />
     </main>
   );
 }

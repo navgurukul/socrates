@@ -12,13 +12,15 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, LayoutDashboard, Trophy } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { getNextChallengeId } from "@/lib/content/registry"; // ✅ Import helper
+import { CodeReview } from "./CodeReview";
 
 interface SuccessDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  code: Record<string, string>;
 }
 
-export function SuccessDialog({ isOpen, onClose }: SuccessDialogProps) {
+export function SuccessDialog({ isOpen, onClose, code }: SuccessDialogProps) {
   const router = useRouter();
   const params = useParams();
   const currentId = typeof params.id === "string" ? params.id : "";
@@ -41,6 +43,7 @@ export function SuccessDialog({ isOpen, onClose }: SuccessDialogProps) {
             </DialogDescription>
           </div>
         </DialogHeader>
+        <CodeReview code={code} challengeId={currentId} />
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-center mt-4">
           <Button
