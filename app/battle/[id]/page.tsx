@@ -7,7 +7,7 @@ import { Terminal } from "@/components/arena/Terminal";
 import { FileTree } from "@/components/arena/FileTree";
 import { buildFileTree } from "@/lib/fileUtils";
 import { SuccessDialog } from "@/components/arena/SuccessDialog";
-import { AiTutor } from "@/components/arena/AITutor";
+import { AiTutor, type ReviewData } from "@/components/arena/AITutor";
 import { ProjectBrief } from "@/components/arena/ProjectBrief";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -72,6 +72,10 @@ export default function BattleArena() {
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [activeFile, setActiveFile] = useState<string>("index.js");
 
+  // Review & Success Dialog State
+  const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+
   const { createFile, deletePath, renamePath } = useFileSystem(
     fileContents,
     setFileContents,
@@ -123,10 +127,21 @@ export default function BattleArena() {
     }
   }, [isEnvReady, instance, monacoInstance, injectIntelliSense]);
 
-  // Save progress when user wins
+  // Save progress and fetch review when user wins
   useEffect(() => {
     if (status === "passed") {
       markSolved(challengeId);
+      setShowSuccessDialog(true);
+
+      // Fetch code review for AITutor
+      fetch("/api/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: fileContents, challengeId }),
+      })
+        .then((res) => res.json())
+        .then((data) => setReviewData(data))
+        .catch((err) => console.error("Review fetch failed:", err));
 
       // Save to Cloud (fire-and-forget)
       submitSuccess(challengeId, fileContents, attemptsRef.current).then(
@@ -386,7 +401,11 @@ export default function BattleArena() {
                   forceMount
                   className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
                 >
-                  <AiTutor files={fileContents} testOutput={testOutput} />
+                  <AiTutor
+                    files={fileContents}
+                    testOutput={testOutput}
+                    reviewData={reviewData}
+                  />
                 </TabsContent>
               </Tabs>
             </ResizablePanel>
@@ -395,9 +414,8 @@ export default function BattleArena() {
       </ResizablePanelGroup>
 
       <SuccessDialog
-        isOpen={status === "passed"}
-        onClose={() => {}}
-        code={fileContents}
+        isOpen={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
       />
     </main>
   );
