@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { CodeEditor } from "@/components/arena/CodeEditor";
-import { Terminal } from "@/components/arena/Terminal";
-import { FileTree } from "@/components/arena/FileTree";
+import Link from "next/link";
+import { BattleHeader } from "@/components/arena/BattleHeader";
+import { SidebarPanel } from "@/components/arena/SidebarPanel";
+import { EditorPanel } from "@/components/arena/EditorPanel";
+import { PreviewPanel } from "@/components/arena/PreviewPanel";
+import { BottomTabsPanel } from "@/components/arena/BottomTabsPanel";
 import { buildFileTree } from "@/lib/fileUtils";
-
-import { AiTutor, type ReviewData } from "@/components/arena/AITutor";
-import { ProjectBrief } from "@/components/arena/ProjectBrief";
-
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useWebContainer } from "@/hooks/useWebContainer";
 import { useTypeBridge } from "@/hooks/useTypeBridge";
@@ -19,26 +17,21 @@ import { useChallengeLoader } from "@/hooks/useChallengeLoader";
 import { useContainerSync } from "@/hooks/useContainerSync";
 import { Terminal as XTerminal } from "xterm";
 import { Button } from "@/components/ui/button";
-import { Monaco, OnMount } from "@monaco-editor/react";
+import { type OnMount } from "@monaco-editor/react";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { ArrowLeft, Files, FileText, RefreshCw } from "lucide-react";
-import Link from "next/link";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { useMonacoSync } from "@/hooks/useMonacoSync";
 import { useUserStore } from "@/lib/store/userStore";
 import { submitSuccess } from "@/lib/actions/progress";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useBattleStore } from "@/lib/store/battleStore";
+import { useEditorStore } from "@/lib/store/editorStore";
+import { LAYOUT, TABS, TEST_STATUS } from "@/lib/config/constants";
 
 export default function BattleArena() {
   const params = useParams();
@@ -47,40 +40,46 @@ export default function BattleArena() {
   const { challenge, isLoading: isLoadingChallenge } =
     useChallengeLoader(challengeId);
 
+  // Battle Store - manages execution state
+  const status = useBattleStore((state) => state.status);
+  const testOutput = useBattleStore((state) => state.testOutput);
+  const reviewData = useBattleStore((state) => state.reviewData);
+  const attemptCount = useBattleStore((state) => state.attemptCount);
+  const activeBottomTab = useBattleStore((state) => state.activeBottomTab);
+  const setReviewData = useBattleStore((state) => state.setReviewData);
+  const incrementAttempts = useBattleStore((state) => state.incrementAttempts);
+  const setActiveBottomTab = useBattleStore(
+    (state) => state.setActiveBottomTab
+  );
+
+  // Editor Store - manages file state
+  const fileContents = useEditorStore((state) => state.fileContents);
+  const activeFile = useEditorStore((state) => state.activeFile);
+  const monacoInstance = useEditorStore((state) => state.monacoInstance);
+  const setFileContents = useEditorStore((state) => state.setFileContents);
+  const updateFile = useEditorStore((state) => state.updateFile);
+  const setActiveFile = useEditorStore((state) => state.setActiveFile);
+  const setMonacoInstance = useEditorStore((state) => state.setMonacoInstance);
+
   const { instance, error: containerError } = useWebContainer();
   const [term, setTerm] = useState<XTerminal | null>(null);
   const {
     setupChallenge,
     runTests,
-    status,
-    testOutput,
     previewUrl,
     iframeKey,
     refreshPreview,
   } = useShell(instance, term);
-  const isRunning = status === "running";
+  const isRunning = status === TEST_STATUS.RUNNING;
 
   // Progress Tracking
   const markSolved = useUserStore((state) => state.markSolved);
-  const attemptsRef = useRef(0); // Track attempts without causing re-renders
 
   // IntelliSense Integration
   const { injectIntelliSense } = useTypeBridge();
-  const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
-  const [isEnvReady, setIsEnvReady] = useState(false); // Tracks if dependencies are installed
+  const [isEnvReady, setIsEnvReady] = useState(false);
 
-  const [fileContents, setFileContents] = useState<Record<string, string>>({});
-  const [activeFile, setActiveFile] = useState<string>("index.js");
-
-  // Review State & Tab Control
-  const [reviewData, setReviewData] = useState<ReviewData | null>(null);
-  const [bottomTab, setBottomTab] = useState<string>("console");
-
-  const { createFile, deletePath, renamePath } = useFileSystem(
-    fileContents,
-    setFileContents,
-    instance
-  );
+  const { createFile, deletePath, renamePath } = useFileSystem(instance);
 
   // ACTIVATE SYNC - Runs whenever fileContents changes (typing, creating files, etc.)
   useMonacoSync(monacoInstance, fileContents);
@@ -92,21 +91,6 @@ export default function BattleArena() {
   const handleEditorDidMount: OnMount = (_editor, monaco) => {
     setMonacoInstance(monaco);
   };
-
-  useEffect(() => {
-    if (!challenge || isLoadingChallenge) return;
-
-    const initialFiles: Record<string, string> = {};
-    Object.entries(challenge.files).forEach(([name, data]) => {
-      initialFiles[name] = data.file.contents;
-    });
-    setFileContents(initialFiles);
-
-    const firstFile =
-      Object.keys(initialFiles).find((f) => f.endsWith(".js")) ||
-      Object.keys(initialFiles)[0];
-    setActiveFile(firstFile);
-  }, [challenge, isLoadingChallenge]);
 
   // Setup Challenge & Signal Readiness
   useEffect(() => {
@@ -127,12 +111,27 @@ export default function BattleArena() {
     }
   }, [isEnvReady, instance, monacoInstance, injectIntelliSense]);
 
+  useEffect(() => {
+    if (!challenge || isLoadingChallenge) return;
+
+    const initialFiles: Record<string, string> = {};
+    Object.entries(challenge.files).forEach(([name, data]) => {
+      initialFiles[name] = data.file.contents;
+    });
+    setFileContents(initialFiles);
+
+    const firstFile =
+      Object.keys(initialFiles).find((f) => f.endsWith(".js")) ||
+      Object.keys(initialFiles)[0];
+    setActiveFile(firstFile);
+  }, [challenge, isLoadingChallenge, setFileContents, setActiveFile]);
+
   // Save progress and fetch review when user wins
   useEffect(() => {
-    if (status === "passed") {
+    if (status === TEST_STATUS.PASSED) {
       markSolved(challengeId);
       // Switch to AI Tutor tab to show the review
-      setBottomTab("tutor");
+      setActiveBottomTab(TABS.TUTOR);
 
       // Fetch code review for AITutor
       fetch("/api/review", {
@@ -145,21 +144,16 @@ export default function BattleArena() {
         .catch((err) => console.error("Review fetch failed:", err));
 
       // Save to Cloud (fire-and-forget)
-      submitSuccess(challengeId, fileContents, attemptsRef.current).then(
-        (res) => {
-          if (res.error) console.error("Cloud save failed:", res.error);
-        }
-      );
+      submitSuccess(challengeId, fileContents, attemptCount).then((res) => {
+        if (res.error) console.error("Cloud save failed:", res.error);
+      });
     }
-  }, [status, challengeId, markSolved, fileContents]);
+  }, [status, challengeId, markSolved, fileContents, attemptCount, setReviewData, setActiveBottomTab]);
 
   // Handle user typing
   const handleCodeChange = (newContent: string | undefined) => {
     if (newContent === undefined) return;
-    setFileContents((prev) => ({
-      ...prev,
-      [activeFile]: newContent,
-    }));
+    updateFile(activeFile, newContent);
   };
 
   const isCurrentFileReadOnly = challenge?.files[activeFile]?.readOnly || false;
@@ -168,6 +162,12 @@ export default function BattleArena() {
   const fileTree = useMemo(() => {
     return buildFileTree(Object.keys(fileContents));
   }, [fileContents]);
+
+  // Stable callback for running tests
+  const handleRunTests = useCallback(() => {
+    incrementAttempts();
+    runTests(fileContents);
+  }, [runTests, fileContents, incrementAttempts]);
 
   // Handle WebContainer error
   if (containerError) {
@@ -211,113 +211,44 @@ export default function BattleArena() {
 
   return (
     <main className="flex h-screen flex-col bg-zinc-950 text-white">
-      <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
-        <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-zinc-400 hover:text-white"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex flex-col">
-            <h1 className="text-sm font-bold leading-none">
-              {challenge.title}
-            </h1>
-            <span className="text-xs text-zinc-500">Bug Battle</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => {
-              attemptsRef.current += 1;
-              runTests(fileContents);
-            }}
-            disabled={!instance || isRunning}
-            className={
-              isRunning ? "opacity-80" : "bg-emerald-600 hover:bg-emerald-700"
-            }
-          >
-            {isRunning ? "Running..." : "Run Tests"}
-          </Button>
-        </div>
-      </header>
+      <BattleHeader
+        challengeTitle={challenge.title}
+        onRunTests={handleRunTests}
+        isRunning={isRunning}
+        disabled={!instance || isRunning}
+      />
 
       <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-          <Tabs
-            defaultValue="brief"
-            className="flex flex-col h-full bg-zinc-950"
-          >
-            {/* Sidebar Tabs Header */}
-            <div className="flex items-center border-b border-zinc-800 bg-zinc-950 px-2">
-              <TabsList className="h-9 bg-transparent p-0 gap-1 w-full justify-start">
-                <TabsTrigger
-                  value="brief"
-                  className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 rounded-md h-7 px-3 text-xs flex gap-2"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  Brief
-                </TabsTrigger>
-                <TabsTrigger
-                  value="files"
-                  className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 rounded-md h-7 px-3 text-xs flex gap-2"
-                >
-                  <Files className="w-3.5 h-3.5" />
-                  Files
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            {/* Tab 1: Project Brief (The Ticket) */}
-            <TabsContent
-              value="brief"
-              className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden"
-            >
-              <ProjectBrief challenge={challenge} />
-            </TabsContent>
-
-            {/* Tab 2: File Explorer */}
-            <TabsContent
-              value="files"
-              className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden"
-            >
-              <FileTree
-                tree={fileTree}
-                activeFile={activeFile}
-                onSelect={setActiveFile}
-                onCreateFile={createFile}
-                onDelete={deletePath}
-                onRename={renamePath}
-              />
-            </TabsContent>
-          </Tabs>
+        <ResizablePanel
+          defaultSize={LAYOUT.SIDEBAR_DEFAULT_SIZE}
+          minSize={LAYOUT.SIDEBAR_MIN_SIZE}
+          maxSize={LAYOUT.SIDEBAR_MAX_SIZE}
+        >
+          <SidebarPanel
+            challenge={challenge}
+            fileTree={fileTree}
+            activeFile={activeFile}
+            onSelectFile={setActiveFile}
+            onCreateFile={createFile}
+            onDelete={deletePath}
+            onRename={renamePath}
+          />
         </ResizablePanel>
 
         <ResizableHandle className="bg-zinc-800" />
 
-        <ResizablePanel defaultSize={40} minSize={25}>
-          <div className="relative flex flex-col h-full bg-[#1e1e1e]">
-            {isCurrentFileReadOnly && (
-              <div className="absolute top-0 right-4 z-10 bg-red-900/80 text-red-200 text-xs px-2 py-1 rounded-b">
-                Read Only
-              </div>
-            )}
-
-            <CodeEditor
-              key={activeFile}
-              filePath={activeFile}
-              initialCode={fileContents[activeFile] || ""}
-              language={getLanguageFromFilename(activeFile)}
-              onChange={handleCodeChange}
-              readOnly={isCurrentFileReadOnly}
-              onMount={handleEditorDidMount}
-            />
-          </div>
+        <ResizablePanel
+          defaultSize={LAYOUT.EDITOR_DEFAULT_SIZE}
+          minSize={LAYOUT.EDITOR_MIN_SIZE}
+        >
+          <EditorPanel
+            activeFile={activeFile}
+            content={fileContents[activeFile] || ""}
+            language={getLanguageFromFilename(activeFile)}
+            readOnly={isCurrentFileReadOnly}
+            onChange={handleCodeChange}
+            onMount={handleEditorDidMount}
+          />
         </ResizablePanel>
 
         <ResizableHandle
@@ -325,94 +256,36 @@ export default function BattleArena() {
           className="bg-zinc-800 hover:bg-zinc-700 transition-colors"
         />
 
-        <ResizablePanel defaultSize={35} minSize={20}>
+        <ResizablePanel
+          defaultSize={LAYOUT.PREVIEW_DEFAULT_SIZE}
+          minSize={LAYOUT.PREVIEW_MIN_SIZE}
+        >
           <ResizablePanelGroup direction="vertical" className="h-full">
-            {/* Top Sub-section: Live Preview */}
-            <ResizablePanel defaultSize={50} minSize={20}>
-              <div className="h-full w-full relative bg-zinc-900">
-                {/* Preview Header with refresh control */}
-                <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-2 py-1 bg-zinc-900/90 border-b border-zinc-800">
-                  <span className="text-xs text-zinc-500">Preview</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-zinc-400 hover:text-white"
-                          onClick={refreshPreview}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Reload Preview</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                {previewUrl ? (
-                  <iframe
-                    key={iframeKey}
-                    src={previewUrl}
-                    className="w-full h-full border-none bg-white pt-7"
-                    title="Live Preview"
-                    sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
-                  />
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center text-zinc-500 gap-2">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-400" />
-                    <span className="text-xs">Starting Dev Server...</span>
-                  </div>
-                )}
-              </div>
+            <ResizablePanel
+              defaultSize={LAYOUT.BOTTOM_PANEL_DEFAULT_SIZE}
+              minSize={LAYOUT.BOTTOM_PANEL_MIN_SIZE}
+            >
+              <PreviewPanel
+                previewUrl={previewUrl}
+                iframeKey={iframeKey}
+                onRefresh={refreshPreview}
+              />
             </ResizablePanel>
 
             <ResizableHandle className="bg-zinc-800 hover:bg-zinc-700 transition-colors" />
 
-            {/* Bottom Sub-section: Console & AI Tutor Tabs */}
-            <ResizablePanel defaultSize={50} minSize={20}>
-              <Tabs
-                value={bottomTab}
-                onValueChange={setBottomTab}
-                className="flex flex-col h-full"
-              >
-                <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
-                  <TabsTrigger
-                    value="console"
-                    className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
-                  >
-                    Console
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="tutor"
-                    className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
-                  >
-                    AI Tutor
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent
-                  value="console"
-                  forceMount
-                  className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
-                >
-                  <Terminal onTerminalReady={setTerm} />
-                </TabsContent>
-
-                <TabsContent
-                  value="tutor"
-                  forceMount
-                  className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
-                >
-                  <AiTutor
-                    files={fileContents}
-                    testOutput={testOutput}
-                    reviewData={reviewData}
-                  />
-                </TabsContent>
-              </Tabs>
+            <ResizablePanel
+              defaultSize={LAYOUT.BOTTOM_PANEL_DEFAULT_SIZE}
+              minSize={LAYOUT.BOTTOM_PANEL_MIN_SIZE}
+            >
+              <BottomTabsPanel
+                activeTab={activeBottomTab}
+                onTabChange={setActiveBottomTab}
+                onTerminalReady={setTerm}
+                files={fileContents}
+                testOutput={testOutput}
+                reviewData={reviewData}
+              />
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>

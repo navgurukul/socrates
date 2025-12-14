@@ -14,13 +14,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat, Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, UIMessage } from "ai";
-
-// The shape of our review data
-export interface ReviewData {
-  praise: string;
-  critique?: string;
-  tip: string;
-}
+import { type ReviewData } from "@/lib/store/battleStore";
 
 interface AiTutorProps {
   files: Record<string, string>;
@@ -30,9 +24,10 @@ interface AiTutorProps {
 
 export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
   const [input, setInput] = useState("");
+  const [contextRefreshKey, setContextRefreshKey] = useState(0);
 
   // Create a Chat instance with transport configured for our API
-  // Re-create transport when reviewData changes to include it in context
+  // Re-create transport when reviewData changes OR when context is manually refreshed
   const chat = useMemo(() => {
     const transport = new DefaultChatTransport<UIMessage>({
       api: "/api/chat",
@@ -49,7 +44,7 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
       transport,
       messages: [],
     });
-  }, [reviewData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reviewData, contextRefreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { messages, sendMessage, status } = useChat<UIMessage>({ chat });
   const isLoading = status === "streaming" || status === "submitted";
@@ -62,6 +57,13 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, reviewData]);
+
+  // Refresh context when testOutput changes (after test run)
+  useEffect(() => {
+    if (testOutput) {
+      setContextRefreshKey(prev => prev + 1);
+    }
+  }, [testOutput]);
 
   // Extract text content from message parts
   const getMessageText = (message: UIMessage) => {

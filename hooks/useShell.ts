@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { Challenge } from "@/lib/content/types";
 import { ensureDirectory } from "@/lib/fileUtils";
 import { createLogger } from "@/lib/logger";
+import { useBattleStore } from "@/lib/store/battleStore";
+import { CONTAINER, TEST_STATUS } from "@/lib/config/constants";
 
 const logger = createLogger("System");
-
-export type TestStatus = "idle" | "running" | "passed" | "failed";
 
 type FileSystemTree = {
   [name: string]:
@@ -52,10 +52,14 @@ export function useShell(
   instance: WebContainer | null,
   terminal: Terminal | null
 ) {
-  const [status, setStatus] = useState<TestStatus>("idle");
-  const [testOutput, setTestOutput] = useState<string>("");
+  const setStatus = useBattleStore((state) => state.setStatus);
+  const setTestOutput = useBattleStore((state) => state.setTestOutput);
+  
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [iframeKey, setIframeKey] = useState<number>(0);
+  
+  // Track if we've already set up the server listener to prevent duplicates
+  const hasServerListenerRef = useRef(false);
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
@@ -66,11 +70,14 @@ export function useShell(
   const startDevServer = useCallback(async () => {
     if (!instance || !terminal) return;
 
-    // 1. Set up the listener BEFORE spawning
-    instance.on("server-ready", (port, url) => {
-      logger.debug(`Server ready on port ${port}: ${url}`);
-      setPreviewUrl(url); // Save the internal URL
-    });
+    // 1. Only set up listener once per instance to prevent duplicates
+    if (!hasServerListenerRef.current) {
+      instance.on("server-ready", (port, url) => {
+        logger.debug(`Server ready on port ${port}: ${url}`);
+        setPreviewUrl(url); // Save the internal URL
+      });
+      hasServerListenerRef.current = true;
+    }
 
     // 2. Spawn the process
     // We use npm run dev so we can run the dev server
@@ -90,9 +97,10 @@ export function useShell(
   const setupChallenge = useCallback(
     async (challenge: Challenge) => {
       if (!instance || !terminal) return;
-      setStatus("idle");
+      setStatus(TEST_STATUS.IDLE);
       setTestOutput(""); // Reset test output
       setPreviewUrl(null); // Reset preview URL
+      hasServerListenerRef.current = false; // Reset listener flag for new challenge
 
       // Clear terminal for fresh start
       terminal.clear();
@@ -102,8 +110,9 @@ export function useShell(
       try {
         // Remove src/ directory to clear old challenge files
         await instance.fs.rm("src", { recursive: true, force: true });
-      } catch {
-        // Directory may not exist on first load, ignore error
+      } catch (error) {
+        // Expected: directory may not exist on first challenge load
+        logger.debug("No existing src directory to remove", { error });
       }
 
       // 2. Mount new challenge files
@@ -118,7 +127,7 @@ export function useShell(
       let needsInstall = true;
       try {
         const dirs = await instance.fs.readdir("node_modules");
-        if (dirs.length > 5) {
+        if (dirs.length > CONTAINER.NODE_MODULES_MIN_DIRS) {
           needsInstall = false;
         }
       } catch {
@@ -128,13 +137,7 @@ export function useShell(
       if (needsInstall) {
         log("\x1b[33m[System] Installing dependencies...\x1b[0m");
 
-        const installProcess = await instance.spawn("npm", [
-          "install",
-          "--prefer-offline",
-          "--no-audit",
-          "--no-fund",
-          "--progress",
-        ]);
+        const installProcess = await instance.spawn("npm", CONTAINER.NPM_INSTALL_FLAGS as unknown as string[]);
 
         installProcess.output.pipeTo(
           new WritableStream({
@@ -174,7 +177,7 @@ export function useShell(
   const runTests = useCallback(
     async (fileContents: Record<string, string>) => {
       if (!instance || !terminal) return;
-      setStatus("running");
+      setStatus(TEST_STATUS.RUNNING);
       setTestOutput(""); // ✅ Reset output buffer
 
       log("\r\n\x1b[34m[Test] Running validation...\x1b[0m\r\n");
@@ -207,10 +210,10 @@ export function useShell(
       setTestOutput(outputBuffer);
 
       if (exitCode === 0) {
-        setStatus("passed");
+        setStatus(TEST_STATUS.PASSED);
         log("\r\n\x1b[32m[System] Tests Passed! \u2728\x1b[0m");
       } else {
-        setStatus("failed");
+        setStatus(TEST_STATUS.FAILED);
         log("\r\n\x1b[31m[System] Tests Failed.\x1b[0m");
       }
     },
@@ -224,8 +227,6 @@ export function useShell(
   return {
     setupChallenge,
     runTests,
-    status,
-    testOutput,
     previewUrl,
     iframeKey,
     refreshPreview,

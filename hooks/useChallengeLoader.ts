@@ -4,27 +4,62 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getChallenge } from "@/lib/content/registry";
 import { Challenge } from "@/lib/content/types";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("ChallengeLoader");
 
 /**
  * Hook to load challenge data by ID
- * Handles loading state and redirects to home if challenge not found
+ * Handles loading state, error handling, and redirects to home if challenge not found
  */
 export function useChallengeLoader(challengeId: string) {
   const router = useRouter();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (challengeId) {
-      getChallenge(challengeId).then((data) => {
-        setChallenge(data);
-        setIsLoading(false);
-        if (!data) {
-          router.push("/");
-        }
-      });
+    // Validate challengeId before proceeding
+    const trimmedId = challengeId?.trim();
+    if (!trimmedId) {
+      setIsLoading(false);
+      setNotFound(true);
+      return;
     }
+
+    setIsLoading(true);
+    setError(null);
+    setNotFound(false);
+
+    getChallenge(trimmedId)
+      .then((data) => {
+        if (!data) {
+          setNotFound(true);
+          setChallenge(null);
+          router.push("/");
+        } else {
+          setChallenge(data);
+          setNotFound(false);
+        }
+        setError(null);
+      })
+      .catch((err) => {
+        logger.error("Failed to load challenge", { challengeId: trimmedId, error: err });
+        setError(err);
+        setChallenge(null);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [challengeId, router]);
 
-  return { challenge, isLoading };
+  const retry = () => {
+    if (challengeId) {
+      setIsLoading(true);
+      setError(null);
+    }
+  };
+
+  return { challenge, isLoading, error, notFound, retry };
 }

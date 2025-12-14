@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Monaco } from "@monaco-editor/react";
-import type { editor } from "monaco-editor";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("TypeBridge");
@@ -494,13 +493,9 @@ export function useTypeBridge() {
         "file:///node_modules/@types/vitest-globals/index.d.ts"
       );
 
-      // Force models to re-evaluate types
-      monaco.editor.getModels().forEach((model: editor.ITextModel) => {
-        const value = model.getValue();
-        model.setValue("");
-        model.setValue(value);
-      });
-
+      // Instead of forcing a full refresh, Monaco's type system will automatically
+      // revalidate when new type definitions are added via addExtraLib.
+      // The eager model sync setting ensures types are picked up quickly.
       logger.debug("Injection complete.");
     },
     [loadTypesFromContainer, addExtraLib]

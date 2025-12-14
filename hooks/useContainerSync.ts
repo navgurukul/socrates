@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { ensureDirectory } from "@/lib/fileUtils";
+import { TIMINGS } from "@/lib/config/constants";
 
 /**
  * Hook to sync file contents to WebContainer filesystem with debouncing
@@ -12,7 +13,7 @@ export function useContainerSync(
   instance: WebContainer | null,
   fileContents: Record<string, string>,
   isReady: boolean,
-  debounceMs: number = 300
+  debounceMs: number = TIMINGS.DEBOUNCE_FILE_SYNC_MS
 ) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const previousContentsRef = useRef<Record<string, string>>({});
