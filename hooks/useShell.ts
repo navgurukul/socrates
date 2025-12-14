@@ -97,8 +97,16 @@ export function useShell(
       // Clear terminal for fresh start
       terminal.clear();
 
-      // 1. Mount files (fast single operation)
+      // 1. Clean up old challenge files before mounting new ones
       log("\x1b[33m[System] Mounting file system...\x1b[0m");
+      try {
+        // Remove src/ directory to clear old challenge files
+        await instance.fs.rm("src", { recursive: true, force: true });
+      } catch {
+        // Directory may not exist on first load, ignore error
+      }
+
+      // 2. Mount new challenge files
       const flatFiles: Record<string, { file: { contents: string } }> = {};
       Object.entries(challenge.files).forEach(([name, data]) => {
         flatFiles[name] = { file: { contents: data.file.contents } };
@@ -106,7 +114,7 @@ export function useShell(
       const mountTree = buildMountTree(flatFiles);
       await instance.mount(mountTree);
 
-      // 2. Check if dependencies need to be installed
+      // 3. Check if dependencies need to be installed
       let needsInstall = true;
       try {
         const dirs = await instance.fs.readdir("node_modules");
@@ -120,12 +128,12 @@ export function useShell(
       if (needsInstall) {
         log("\x1b[33m[System] Installing dependencies...\x1b[0m");
 
-        // Use npm ci for faster, cleaner installs when possible
         const installProcess = await instance.spawn("npm", [
           "install",
           "--prefer-offline",
           "--no-audit",
           "--no-fund",
+          "--progress",
         ]);
 
         installProcess.output.pipeTo(

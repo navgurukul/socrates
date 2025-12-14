@@ -32,6 +32,7 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
   const [input, setInput] = useState("");
 
   // Create a Chat instance with transport configured for our API
+  // Re-create transport when reviewData changes to include it in context
   const chat = useMemo(() => {
     const transport = new DefaultChatTransport<UIMessage>({
       api: "/api/chat",
@@ -39,6 +40,7 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
         context: {
           files,
           error: testOutput,
+          review: reviewData,
         },
       },
     });
@@ -47,7 +49,7 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
       transport,
       messages: [],
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reviewData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { messages, sendMessage, status } = useChat<UIMessage>({ chat });
   const isLoading = status === "streaming" || status === "submitted";

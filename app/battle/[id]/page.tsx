@@ -6,7 +6,7 @@ import { CodeEditor } from "@/components/arena/CodeEditor";
 import { Terminal } from "@/components/arena/Terminal";
 import { FileTree } from "@/components/arena/FileTree";
 import { buildFileTree } from "@/lib/fileUtils";
-import { SuccessDialog } from "@/components/arena/SuccessDialog";
+
 import { AiTutor, type ReviewData } from "@/components/arena/AITutor";
 import { ProjectBrief } from "@/components/arena/ProjectBrief";
 
@@ -72,9 +72,9 @@ export default function BattleArena() {
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [activeFile, setActiveFile] = useState<string>("index.js");
 
-  // Review & Success Dialog State
+  // Review State & Tab Control
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [bottomTab, setBottomTab] = useState<string>("console");
 
   const { createFile, deletePath, renamePath } = useFileSystem(
     fileContents,
@@ -131,7 +131,8 @@ export default function BattleArena() {
   useEffect(() => {
     if (status === "passed") {
       markSolved(challengeId);
-      setShowSuccessDialog(true);
+      // Switch to AI Tutor tab to show the review
+      setBottomTab("tutor");
 
       // Fetch code review for AITutor
       fetch("/api/review", {
@@ -372,7 +373,11 @@ export default function BattleArena() {
 
             {/* Bottom Sub-section: Console & AI Tutor Tabs */}
             <ResizablePanel defaultSize={50} minSize={20}>
-              <Tabs defaultValue="console" className="flex flex-col h-full">
+              <Tabs
+                value={bottomTab}
+                onValueChange={setBottomTab}
+                className="flex flex-col h-full"
+              >
                 <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
                   <TabsTrigger
                     value="console"
@@ -412,11 +417,6 @@ export default function BattleArena() {
           </ResizablePanelGroup>
         </ResizablePanel>
       </ResizablePanelGroup>
-
-      <SuccessDialog
-        isOpen={showSuccessDialog}
-        onClose={() => setShowSuccessDialog(false)}
-      />
     </main>
   );
 }

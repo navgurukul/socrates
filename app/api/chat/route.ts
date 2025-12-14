@@ -1,8 +1,8 @@
 import { streamText, convertToModelMessages } from "ai";
-import { models } from "@/lib/ai/models";
+import { models, aiConfig } from "@/lib/ai/models";
 
 // Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+export const maxDuration = aiConfig.maxDuration;
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +13,17 @@ export async function POST(req: Request) {
     // Safely access context with fallbacks
     const files = context?.files || {};
     const error = context?.error || "No error yet";
+    const review = context?.review || null;
+
+    // Build review context string if available
+    const reviewContext = review
+      ? `
+      - Code Review Feedback:
+        * Praise: ${review.praise}
+        ${review.critique ? `* Critique: ${review.critique}` : ""}
+        * Senior Tip: ${review.tip}
+      `
+      : "";
 
     // "context" contains the current file contents and terminal output
     // We inject this invisibly into the system prompt
@@ -24,6 +35,7 @@ export async function POST(req: Request) {
         ${JSON.stringify(files, null, 2)}
       - Last Test Output/Error: 
         ${error}
+      ${reviewContext}
       
       RULES:
       1. NEVER give the user the code solution.
@@ -31,6 +43,11 @@ export async function POST(req: Request) {
       3. If they have a syntax error, point them to the line number.
       4. If they have a logic error, explain the concept they are missing.
       5. Be concise. Keep responses under 3 sentences if possible.
+      ${
+        review
+          ? "6. If the user asks about the code review, refer to the feedback above."
+          : ""
+      }
     `;
 
     console.log(
