@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { TreeNode } from "@/lib/fileUtils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -23,15 +24,8 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { FileActionDialog } from "@/components/ui/file-action-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 // ... existing getFileIcon helper ...
 const getFileIcon = (filename: string) => {
@@ -90,14 +84,11 @@ const FileTreeNode = memo(function FileTreeNode({
         <ContextMenuTrigger>
           <div
             onClick={handleClick}
-            className={`
-              flex items-center gap-1.5 py-1 px-2 cursor-pointer text-xs select-none transition-colors group
-              ${
-                isSelected
-                  ? "bg-emerald-900/30 text-emerald-100 border-l-2 border-emerald-500"
-                  : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50"
-              }
-            `}
+            className={cn(
+              "flex items-center gap-1.5 py-1 px-2 cursor-pointer text-xs select-none transition-colors group",
+              isSelected && "bg-emerald-900/30 text-emerald-100 border-l-2 border-emerald-500",
+              !isSelected && "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50"
+            )}
             style={{ paddingLeft: `${level * 12 + 8}px` }}
           >
             {node.type === "folder" ? (
@@ -189,66 +180,54 @@ export function FileTree({
   onDelete,
   onRename,
 }: FileTreeProps) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create" | "rename">("create");
-  const [targetPath, setTargetPath] = useState("");
-  const [targetType, setTargetType] = useState<"file" | "folder">("file");
-  const [inputValue, setInputValue] = useState("");
-  
-  // Delete confirmation dialog state
+  // Dialog state management
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ path: string; type: "file" | "folder" } | null>(null);
+  
+  // Dialog context
+  const [dialogContext, setDialogContext] = useState<{
+    path: string;
+    type: "file" | "folder";
+  }>({ path: "", type: "file" });
 
   const handleAction = (
     action: "create" | "delete" | "rename",
     path: string,
     type: "file" | "folder"
   ) => {
+    setDialogContext({ path, type });
+    
     if (action === "delete") {
-      setDeleteTarget({ path, type });
       setDeleteDialogOpen(true);
-      return;
+    } else if (action === "create") {
+      setCreateDialogOpen(true);
+    } else if (action === "rename") {
+      setRenameDialogOpen(true);
     }
-
-    setTargetPath(path);
-    setTargetType(type);
-    setDialogMode(action);
-    setInputValue(action === "rename" ? path.split("/").pop() || "" : "");
-    setDialogOpen(true);
   };
 
-  const submitDialog = () => {
-    if (!inputValue.trim()) return;
-
-    if (dialogMode === "create") {
-      // Create new file - at root if targetPath is empty, otherwise inside folder
-      const newPath = targetPath ? `${targetPath}/${inputValue}` : inputValue;
-      onCreateFile(newPath);
-    } else {
-      // Rename logic: reconstruct path with new name
-      const parts = targetPath.split("/");
-      parts.pop(); // remove old name
-      const newPath =
-        parts.length > 0 ? `${parts.join("/")}/${inputValue}` : inputValue;
-      onRename(targetPath, newPath, targetType);
-    }
-    setDialogOpen(false);
+  const handleCreate = (filename: string) => {
+    const newPath = dialogContext.path
+      ? `${dialogContext.path}/${filename}`
+      : filename;
+    onCreateFile(newPath);
   };
 
-  const confirmDelete = () => {
-    if (deleteTarget) {
-      onDelete(deleteTarget.path, deleteTarget.type);
-      setDeleteDialogOpen(false);
-      setDeleteTarget(null);
-    }
+  const handleRename = (newName: string) => {
+    const parts = dialogContext.path.split("/");
+    parts.pop(); // remove old name
+    const newPath = parts.length > 0 ? `${parts.join("/")}/${newName}` : newName;
+    onRename(dialogContext.path, newPath, dialogContext.type);
+  };
+
+  const handleDelete = () => {
+    onDelete(dialogContext.path, dialogContext.type);
   };
 
   const handleRootCreate = () => {
-    setTargetPath(""); // Empty path = root level
-    setTargetType("file");
-    setDialogMode("create");
-    setInputValue("");
-    setDialogOpen(true);
+    setDialogContext({ path: "", type: "file" });
+    setCreateDialogOpen(true);
   };
 
   return (
@@ -280,74 +259,44 @@ export function FileTree({
         </div>
       </ScrollArea>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {dialogMode === "create" ? "Create New File" : "Rename File"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <span className="text-xs text-zinc-500">
-                {dialogMode === "create"
-                  ? `Creating in: ${targetPath ? targetPath + "/" : "(root)"}`
-                  : `Original: ${targetPath}`}
-              </span>
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                className="bg-zinc-950 border-zinc-700 focus-visible:ring-emerald-600"
-                placeholder="filename.tsx"
-                onKeyDown={(e) => e.key === "Enter" && submitDialog()}
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={submitDialog}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              {dialogMode === "create" ? "Create" : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FileActionDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        mode="create"
+        targetPath={dialogContext.path}
+        onSubmit={handleCreate}
+      />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              Delete {deleteTarget?.type === "folder" ? "Folder" : "File"}?
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
+      <FileActionDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        mode="rename"
+        targetPath={dialogContext.path}
+        defaultValue={dialogContext.path.split("/").pop() || ""}
+        onSubmit={handleRename}
+      />
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={`Delete ${dialogContext.type === "folder" ? "Folder" : "File"}?`}
+        message={
+          <>
             <p className="text-zinc-400">
               Are you sure you want to delete{" "}
-              <span className="text-zinc-200 font-mono">{deleteTarget?.path}</span>?
+              <span className="text-zinc-200 font-mono">
+                {dialogContext.path}
+              </span>
+              ?
             </p>
             <p className="text-zinc-500 text-sm mt-2">
               This action cannot be undone.
             </p>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+        actionLabel="Delete"
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

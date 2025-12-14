@@ -1,228 +1,62 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { Challenge } from "@/lib/content/types";
-import { ensureDirectory } from "@/lib/fileUtils";
-import { createLogger } from "@/lib/logger";
 import { useBattleStore } from "@/lib/store/battleStore";
-import { CONTAINER, TEST_STATUS } from "@/lib/config/constants";
-
-const logger = createLogger("System");
-
-type FileSystemTree = {
-  [name: string]:
-    | { file: { contents: string } }
-    | { directory: FileSystemTree };
-};
+import { TEST_STATUS } from "@/lib/config/constants";
+import { useChallengeSetup } from "./useChallengeSetup";
+import { useTestRunner } from "./useTestRunner";
+import { useDevServer } from "./useDevServer";
 
 /**
- * Converts flat file paths to nested WebContainer directory structure
- * e.g., { "src/index.js": {...} } -> { src: { directory: { "index.js": {...} } } }
+ * Facade hook that orchestrates challenge setup, test execution, and dev server management.
+ * Delegates to specialized hooks for single-responsibility concerns.
+ * 
+ * @deprecated This hook will be removed in a future version. Use the specialized hooks directly:
+ * - useChallengeSetup for challenge initialization
+ * - useTestRunner for test execution
+ * - useDevServer for preview server management
  */
-function buildMountTree(
-  files: Record<string, { file: { contents: string } }>
-): FileSystemTree {
-  const tree: FileSystemTree = {};
-
-  for (const [path, fileData] of Object.entries(files)) {
-    const parts = path.split("/");
-    let current = tree;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isFile = i === parts.length - 1;
-
-      if (isFile) {
-        current[part] = { file: { contents: fileData.file.contents } };
-      } else {
-        if (!current[part]) {
-          current[part] = { directory: {} };
-        }
-        current = (current[part] as { directory: FileSystemTree }).directory;
-      }
-    }
-  }
-
-  return tree;
-}
-
 export function useShell(
   instance: WebContainer | null,
   terminal: Terminal | null
 ) {
   const setStatus = useBattleStore((state) => state.setStatus);
-  const setTestOutput = useBattleStore((state) => state.setTestOutput);
   
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [iframeKey, setIframeKey] = useState<number>(0);
-  
-  // Track if we've already set up the server listener to prevent duplicates
-  const hasServerListenerRef = useRef(false);
-
-  const log = useCallback(
-    (message: string) => terminal?.writeln(message),
-    [terminal]
-  );
-
-  // ✅ NEW: Function to start the dev server
-  const startDevServer = useCallback(async () => {
-    if (!instance || !terminal) return;
-
-    // 1. Only set up listener once per instance to prevent duplicates
-    if (!hasServerListenerRef.current) {
-      instance.on("server-ready", (port, url) => {
-        logger.debug(`Server ready on port ${port}: ${url}`);
-        setPreviewUrl(url); // Save the internal URL
-      });
-      hasServerListenerRef.current = true;
-    }
-
-    // 2. Spawn the process
-    // We use npm run dev so we can run the dev server
-    // Note: This process runs indefinitely.
-    const process = await instance.spawn("npm", ["run", "dev"]);
-
-    process.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          // Optional: Pipe dev server logs to terminal
-          // terminal.write(data);
-        },
-      })
-    );
-  }, [instance, terminal]);
+  // Delegate to specialized hooks
+  const { setupChallenge: setupChallengeImpl } = useChallengeSetup(instance, terminal);
+  const { runTests: runTestsImpl } = useTestRunner(instance, terminal);
+  const { 
+    startServer, 
+    previewUrl, 
+    iframeKey, 
+    refreshPreview 
+  } = useDevServer(instance, terminal);
 
   const setupChallenge = useCallback(
     async (challenge: Challenge) => {
-      if (!instance || !terminal) return;
       setStatus(TEST_STATUS.IDLE);
-      setTestOutput(""); // Reset test output
-      setPreviewUrl(null); // Reset preview URL
-      hasServerListenerRef.current = false; // Reset listener flag for new challenge
-
-      // Clear terminal for fresh start
-      terminal.clear();
-
-      // 1. Clean up old challenge files before mounting new ones
-      log("\x1b[33m[System] Mounting file system...\x1b[0m");
-      try {
-        // Remove src/ directory to clear old challenge files
-        await instance.fs.rm("src", { recursive: true, force: true });
-      } catch (error) {
-        // Expected: directory may not exist on first challenge load
-        logger.debug("No existing src directory to remove", { error });
-      }
-
-      // 2. Mount new challenge files
-      const flatFiles: Record<string, { file: { contents: string } }> = {};
-      Object.entries(challenge.files).forEach(([name, data]) => {
-        flatFiles[name] = { file: { contents: data.file.contents } };
-      });
-      const mountTree = buildMountTree(flatFiles);
-      await instance.mount(mountTree);
-
-      // 3. Check if dependencies need to be installed
-      let needsInstall = true;
-      try {
-        const dirs = await instance.fs.readdir("node_modules");
-        if (dirs.length > CONTAINER.NODE_MODULES_MIN_DIRS) {
-          needsInstall = false;
-        }
-      } catch {
-        needsInstall = true;
-      }
-
-      if (needsInstall) {
-        log("\x1b[33m[System] Installing dependencies...\x1b[0m");
-
-        const installProcess = await instance.spawn("npm", CONTAINER.NPM_INSTALL_FLAGS as unknown as string[]);
-
-        installProcess.output.pipeTo(
-          new WritableStream({
-            write(d) {
-              terminal.write(d);
-            },
-          })
-        );
-        const exitCode = await installProcess.exit;
-
-        if (exitCode !== 0) {
-          log("\r\n\x1b[31m[System] Dependency installation failed.\x1b[0m");
-          return;
-        }
-      } else {
-        log("\x1b[32m[System] Environment cached. Skipping install.\x1b[0m");
-      }
-
-      log("\r\n\x1b[32m[System] Ready to code.\x1b[0m");
-
-      // ✅ Auto-start server if it's a web challenge
-      // Check if challenge has vite config or dev script (indicates a preview-able app)
-      const hasViteConfig =
-        "vite.config.js" in challenge.files ||
-        "vite.config.ts" in challenge.files;
-      const packageJson = challenge.files["package.json"]?.file?.contents || "";
-      const hasDevScript = packageJson.includes('"dev"');
-
-      if (hasViteConfig || hasDevScript) {
-        log("\x1b[35m[System] Starting Preview Server...\x1b[0m");
-        startDevServer();
+      
+      // Delegate to useChallengeSetup
+      const shouldStartServer = await setupChallengeImpl(challenge);
+      
+      // Auto-start server if it's a web challenge
+      if (shouldStartServer) {
+        startServer();
       }
     },
-    [instance, terminal, log, startDevServer]
+    [setupChallengeImpl, startServer, setStatus]
   );
 
   const runTests = useCallback(
     async (fileContents: Record<string, string>) => {
-      if (!instance || !terminal) return;
-      setStatus(TEST_STATUS.RUNNING);
-      setTestOutput(""); // ✅ Reset output buffer
-
-      log("\r\n\x1b[34m[Test] Running validation...\x1b[0m\r\n");
-
-      // 1. Sync file contents from Editor to Container
-      for (const [filename, content] of Object.entries(fileContents)) {
-        await ensureDirectory(instance.fs, filename);
-        await instance.fs.writeFile(filename, content);
-      }
-
-      // 2. Run Tests
-      const testProcess = await instance.spawn("./node_modules/.bin/vitest", [
-        "run",
-      ]);
-
-      let outputBuffer = ""; // ✅ Local buffer to capture stream
-
-      testProcess.output.pipeTo(
-        new WritableStream({
-          write(data) {
-            terminal.write(data); // Write to user screen
-            outputBuffer += data; // ✅ Save to buffer
-          },
-        })
-      );
-
-      const exitCode = await testProcess.exit;
-
-      // ✅ Save final buffer to state
-      setTestOutput(outputBuffer);
-
-      if (exitCode === 0) {
-        setStatus(TEST_STATUS.PASSED);
-        log("\r\n\x1b[32m[System] Tests Passed! \u2728\x1b[0m");
-      } else {
-        setStatus(TEST_STATUS.FAILED);
-        log("\r\n\x1b[31m[System] Tests Failed.\x1b[0m");
-      }
+      // Delegate to useTestRunner
+      await runTestsImpl(fileContents);
     },
-    [instance, terminal, log]
+    [runTestsImpl]
   );
-
-  const refreshPreview = useCallback(() => {
-    setIframeKey((prev) => prev + 1);
-  }, []);
 
   return {
     setupChallenge,

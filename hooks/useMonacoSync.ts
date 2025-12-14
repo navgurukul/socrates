@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
+/**
+ * Hook to sync file contents to Monaco editor models
+ * Maintains a local cache of created model paths to optimize cleanup
+ * and avoid scanning all Monaco internal models on every sync
+ */
 export function useMonacoSync(
   monaco: Monaco | null,
   fileContents: Record<string, string>
 ) {
+  // Cache of user-created model paths for efficient cleanup
+  const createdModelsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!monaco) return;
 
@@ -24,33 +32,31 @@ export function useMonacoSync(
           undefined, // Let Monaco detect language
           uri
         );
+        // Add to cache for efficient tracking
+        createdModelsRef.current.add(path);
       }
       // Do NOT call setValue on existing models - the Editor manages its own content
     });
 
     // 2. Cleanup: Delete models for files that were removed
-    const models = monaco.editor.getModels();
+    // Only iterate over our cached user models instead of all Monaco models
     const fileKeys = new Set(Object.keys(fileContents));
+    const modelsToRemove: string[] = [];
 
-    models.forEach((model: editor.ITextModel) => {
-      // Extract just the path portion for comparison
-      // uri.path gives us "/index.js" or "index.js" depending on format
-      let modelPath = model.uri.path;
-      // Remove leading slash if present
-      if (modelPath.startsWith("/")) {
-        modelPath = modelPath.slice(1);
+    createdModelsRef.current.forEach((modelPath) => {
+      if (!fileKeys.has(modelPath)) {
+        modelsToRemove.push(modelPath);
       }
+    });
 
-      // Filter out internal Monaco models
-      const isInternalModel =
-        modelPath.includes("node_modules") ||
-        model.uri.scheme === "inmemory" ||
-        model.uri.toString().startsWith("ts:") ||
-        model.uri.toString().includes("typescript");
-
-      if (!isInternalModel && !fileKeys.has(modelPath)) {
+    // Dispose removed models and clean up cache
+    modelsToRemove.forEach((modelPath) => {
+      const uri = monaco.Uri.parse(modelPath);
+      const model = monaco.editor.getModel(uri);
+      if (model) {
         model.dispose();
       }
+      createdModelsRef.current.delete(modelPath);
     });
   }, [monaco, fileContents]);
 }

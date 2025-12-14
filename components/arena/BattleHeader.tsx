@@ -4,6 +4,7 @@ import { memo } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface BattleHeaderProps {
   challengeTitle: string;
@@ -41,9 +42,10 @@ export const BattleHeader = memo(function BattleHeader({
           size="sm"
           onClick={onRunTests}
           disabled={disabled}
-          className={
-            isRunning ? "opacity-80" : "bg-emerald-600 hover:bg-emerald-700"
-          }
+          className={cn(
+            isRunning && "opacity-80",
+            !isRunning && "bg-emerald-600 hover:bg-emerald-700"
+          )}
         >
           {isRunning ? "Running..." : "Run Tests"}
         </Button>

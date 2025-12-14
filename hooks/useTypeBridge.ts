@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Monaco } from "@monaco-editor/react";
 import { createLogger } from "@/lib/logger";
+import { TIMINGS } from "@/lib/config/constants";
 
 const logger = createLogger("TypeBridge");
 
@@ -296,6 +297,9 @@ export {};
 `;
 
 export function useTypeBridge() {
+  // Track injection state per WebContainer instance to prevent duplicate injections in Strict Mode
+  const injectionMapRef = useRef(new WeakMap<WebContainer, boolean>());
+
   /**
    * Helper to add types to BOTH typescript and javascript defaults
    */
@@ -318,7 +322,7 @@ export function useTypeBridge() {
       instance: WebContainer,
       monaco: Monaco,
       packageName: string, // e.g., "vitest"
-      maxDepth: number = 5 // Prevent infinite recursion
+      maxDepth: number = TIMINGS.TYPE_LOADING_MAX_DEPTH // Use constant from config
     ) => {
       try {
         const packagePath = `node_modules/${packageName}`;
@@ -395,7 +399,17 @@ export function useTypeBridge() {
 
   const injectIntelliSense = useCallback(
     async (instance: WebContainer, monaco: Monaco) => {
-      logger.debug("Starting injection...");
+      // Guard: Prevent duplicate injection for the same WebContainer instance
+      if (injectionMapRef.current.get(instance)) {
+        logger.debug("Types already injected for this instance, skipping...");
+        return;
+      }
+
+      // Mark as injected immediately to prevent concurrent attempts
+      injectionMapRef.current.set(instance, true);
+
+      try {
+        logger.debug("Starting injection...");
 
       const compilerOptions = {
         target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -426,25 +440,18 @@ export function useTypeBridge() {
       monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
       monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
 
-      // Load Vitest and its dependencies (order matters for type resolution)
-      // First load the core dependencies that vitest relies on
+      // Load all type packages in parallel - Monaco handles lazy resolution
+      // No need for sequential phases as dependencies are resolved on-demand
       await Promise.all([
+        // Vitest core packages
         loadTypesFromContainer(instance, monaco, "@vitest/spy"),
         loadTypesFromContainer(instance, monaco, "@vitest/utils"),
-        loadTypesFromContainer(instance, monaco, "chai"),
-      ]);
-
-      // Then load vitest expect and runner
-      await Promise.all([
         loadTypesFromContainer(instance, monaco, "@vitest/expect"),
         loadTypesFromContainer(instance, monaco, "@vitest/runner"),
-      ]);
-
-      // Finally load the main vitest package
-      await loadTypesFromContainer(instance, monaco, "vitest");
-
-      // Load other dependencies in parallel
-      await Promise.all([
+        loadTypesFromContainer(instance, monaco, "chai"),
+        loadTypesFromContainer(instance, monaco, "vitest"),
+        
+        // React and Testing Library
         loadTypesFromContainer(instance, monaco, "react"),
         loadTypesFromContainer(instance, monaco, "@types/react"),
         loadTypesFromContainer(instance, monaco, "@types/node"),
@@ -496,7 +503,13 @@ export function useTypeBridge() {
       // Instead of forcing a full refresh, Monaco's type system will automatically
       // revalidate when new type definitions are added via addExtraLib.
       // The eager model sync setting ensures types are picked up quickly.
-      logger.debug("Injection complete.");
+        logger.debug("Injection complete.");
+      } catch (error) {
+        // On error, remove the injection mark to allow retry
+        injectionMapRef.current.delete(instance);
+        logger.error("Type injection failed", error);
+        throw error;
+      }
     },
     [loadTypesFromContainer, addExtraLib]
   );

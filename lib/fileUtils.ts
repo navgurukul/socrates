@@ -6,6 +6,23 @@ export interface TreeNode {
 }
 
 /**
+ * File snapshot for rollback operations
+ */
+export interface FileSnapshot {
+  path: string;
+  content: string;
+  existed: boolean;
+}
+
+/**
+ * Operation context for tracking file operations and rollback
+ */
+export interface OperationContext {
+  type: "create" | "delete" | "rename";
+  snapshots: FileSnapshot[];
+}
+
+/**
  * Filesystem interface compatible with WebContainer API
  */
 export interface FileSystem {
@@ -78,4 +95,50 @@ export function buildFileTree(files: string[]): TreeNode[] {
 
   sortNodes(root);
   return root;
+}
+
+/**
+ * Create a snapshot of a file's current state
+ * @param path - File path
+ * @param fileContents - Current file contents map
+ * @returns FileSnapshot containing current state
+ */
+export function createFileSnapshot(
+  path: string,
+  fileContents: Record<string, string>
+): FileSnapshot {
+  return {
+    path,
+    content: fileContents[path] || "",
+    existed: path in fileContents,
+  };
+}
+
+/**
+ * Create snapshots for multiple files (e.g., folder operations)
+ * @param paths - Array of file paths
+ * @param fileContents - Current file contents map
+ * @returns Array of FileSnapshots
+ */
+export function createFileSnapshots(
+  paths: string[],
+  fileContents: Record<string, string>
+): FileSnapshot[] {
+  return paths.map((path) => createFileSnapshot(path, fileContents));
+}
+
+/**
+ * Get all file paths that would be affected by a folder operation
+ * @param folderPath - Path to the folder
+ * @param fileContents - Current file contents map
+ * @returns Array of file paths within the folder
+ */
+export function getFilesInFolder(
+  folderPath: string,
+  fileContents: Record<string, string>
+): string[] {
+  const normalizedPath = folderPath.endsWith("/") ? folderPath : folderPath + "/";
+  return Object.keys(fileContents).filter((key) =>
+    key.startsWith(normalizedPath)
+  );
 }

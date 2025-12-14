@@ -7,6 +7,16 @@
 export const TIMINGS = {
   DEBOUNCE_FILE_SYNC_MS: 300,
   DEBOUNCE_MONACO_SYNC_MS: 150,
+  
+  // Adaptive Sync Configuration
+  SYNC_IDLE_THRESHOLD_MS: 1000,
+  SYNC_SMALL_CHANGE_CHARS: 100,
+  SYNC_SHORT_DEBOUNCE_MS: 150,
+  SYNC_LONG_DEBOUNCE_MS: 500,
+  SYNC_ENABLE_LEADING_EDGE: true,
+  
+  // Type Loading
+  TYPE_LOADING_MAX_DEPTH: 5,
 } as const;
 
 // Layout Configuration
