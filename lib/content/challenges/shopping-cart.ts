@@ -1,7 +1,9 @@
-import { Challenge } from "../types";
+import { Battle } from "../types";
 
-export const shoppingCartChallenge: Challenge = {
+export const shoppingCartBattle: Battle = {
   id: "shopping-cart-bug",
+  trackId: "frontend-debugging",
+  arcId: "state-and-effects",
   title: "Stale Cart Total",
   description: `
 # Bug Report: Cart Total Not Updating

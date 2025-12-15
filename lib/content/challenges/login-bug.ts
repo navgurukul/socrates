@@ -1,7 +1,9 @@
-import { Challenge } from "../types";
+import { Battle } from "../types";
 
-export const loginBugChallenge: Challenge = {
+export const loginBugBattle: Battle = {
   id: "login-spinner-bug",
+  trackId: "frontend-debugging",
+  arcId: "state-and-effects",
   title: "Infinite Login Spinner",
   description: `
 # Bug Report

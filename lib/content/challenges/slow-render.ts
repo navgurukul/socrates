@@ -1,7 +1,9 @@
-import { Challenge } from "../types";
+import { Battle } from "../types";
 
-export const slowRenderChallenge: Challenge = {
+export const slowRenderBattle: Battle = {
   id: "slow-render",
+  trackId: "frontend-debugging",
+  arcId: "render-performance",
   title: "The Laggy Input",
   description: `
 # Bug Report: Typing is Extremely Slow
@@ -24,7 +26,7 @@ Users are complaining that the application "freezes" or "lags" whenever they try
 5. Run Tests to ensure the app still functions correctly.
   `,
   difficulty: "Hard",
-  order: 3,
+  order: 1,
   tech: ["react", "performance", "vite"],
   files: {
     "package.json": {
