@@ -31,7 +31,7 @@ export function ArcTimeline({ arc, arcNumber }: ArcTimelineProps) {
           </div>
 
           {/* Arc Progress */}
-          {progress.total > 0 && (
+          {/* {progress.total > 0 && (
             <div className="flex-shrink-0 min-w-[120px]">
               <ProgressBar
                 current={progress.completed}
@@ -44,14 +44,20 @@ export function ArcTimeline({ arc, arcNumber }: ArcTimelineProps) {
                 {progress.completed}/{progress.total} battles
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Mental Model Tag */}
         <div className="flex items-center gap-2 ml-20">
+          {/* <span className="text-xs text-zinc-500 font-medium">
+            Mental Model:
+          </span> */}
           <Lightbulb className="w-4 h-4 text-yellow-500" />
-          <span className="text-xs text-zinc-500 font-medium">Mental Model:</span>
-          <Badge variant="outline" className="text-xs bg-yellow-500/10 border-yellow-500/20 text-yellow-400">
+
+          <Badge
+            variant="outline"
+            className="text-xs bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
+          >
             {arc.mentalModel}
           </Badge>
         </div>

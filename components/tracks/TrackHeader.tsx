@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "./ProgressBar";
 import { ArrowLeft, Trophy } from "lucide-react";
@@ -17,11 +16,9 @@ export function TrackHeader({ track, progress }: TrackHeaderProps) {
   return (
     <div className="space-y-6">
       {/* Back Navigation */}
-      <Link href="/tracks">
-        <Button variant="outline" className="gap-2 border-zinc-700 hover:border-zinc-600">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Tracks
-        </Button>
+      <Link href="/tracks" className="flex items-center gap-2">
+        <ArrowLeft className="w-4 h-4" />
+        Back to Tracks
       </Link>
 
       {/* Track Title and Info */}
@@ -48,8 +45,13 @@ export function TrackHeader({ track, progress }: TrackHeaderProps) {
 
         {/* Primary Skill Badge */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-zinc-500 font-medium">Primary Skill:</span>
-          <Badge variant="outline" className="text-sm bg-zinc-800 border-zinc-700">
+          <span className="text-sm text-zinc-500 font-medium">
+            Primary Skill:
+          </span>
+          <Badge
+            variant="outline"
+            className="text-sm bg-zinc-800 border-zinc-700"
+          >
             {track.primarySkill}
           </Badge>
         </div>

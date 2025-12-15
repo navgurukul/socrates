@@ -19,9 +19,21 @@ interface TrackCardProps {
 }
 
 const executionTypeConfig = {
-  code: { label: "Code", icon: Code2, color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  analysis: { label: "Analysis", icon: Brain, color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
-  hybrid: { label: "Hybrid", icon: FlaskConical, color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+  code: {
+    label: "Code",
+    icon: Code2,
+    color: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  },
+  analysis: {
+    label: "Analysis",
+    icon: Brain,
+    color: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  },
+  hybrid: {
+    label: "Hybrid",
+    icon: FlaskConical,
+    color: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  },
 };
 
 export function TrackCard({ track }: TrackCardProps) {
@@ -62,7 +74,10 @@ export function TrackCard({ track }: TrackCardProps) {
           </Badge>
 
           {isCompleted && (
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" aria-label="Track completed" />
+            <CheckCircle2
+              className="w-5 h-5 text-emerald-500"
+              aria-label="Track completed"
+            />
           )}
           {isComingSoon && (
             <Badge variant="secondary" className="text-xs">
@@ -106,14 +121,15 @@ export function TrackCard({ track }: TrackCardProps) {
       <CardFooter>
         {isComingSoon ? (
           <Button
-            className="w-full bg-zinc-800 text-zinc-500 cursor-not-allowed"
+            variant="ghost"
+            className="w-full cursor-not-allowed"
             disabled
           >
             {getCtaText()}
           </Button>
         ) : (
           <Link href={`/tracks/${track.id}`} className="w-full">
-            <Button className="w-full bg-zinc-100 text-zinc-900 hover:bg-emerald-500 hover:text-white transition-all font-semibold gap-2">
+            <Button className="w-full transition-all font-semibold gap-2">
               {getCtaText()}
               <Play className="w-4 h-4 fill-current" />
             </Button>
