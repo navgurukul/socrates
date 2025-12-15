@@ -1,20 +1,27 @@
 import { Battle } from "../types";
 
-export const loginBugBattle: Battle = {
-  id: "login-spinner-bug",
+export const brokenCounterBattle: Battle = {
+  id: "broken-counter",
   trackId: "frontend-debugging",
-  arcId: "effects-and-closures",
-  title: "Infinite Login Spinner",
+  arcId: "foundations",
+  title: "Broken Counter UI",
   description: `
-# Bug Report
-The login button enters a loading state but never resolves if the API errors out.
+# Bug Report: Counter Not Incrementing
 
-## Acceptance Criteria
-- [ ] Spinner stops on error
-- [ ] Error message is displayed
+**Severity:** Low  
+**Component:** \`Counter.tsx\`
+
+## Context
+The counter button should increment the count when clicked, but nothing happens.
+
+## Instructions
+1. Run the **Preview** to see the issue.
+2. Click the "Increment" button. Notice the count doesn't change.
+3. Fix the bug in \`src/Counter.tsx\`.
+4. Run Tests to verify.
   `,
   difficulty: "Easy",
-  order: 4,
+  order: 1,
   tech: ["react", "typescript", "vite"],
   files: {
     "package.json": {
@@ -22,7 +29,7 @@ The login button enters a loading state but never resolves if the API errors out
       file: {
         contents: JSON.stringify(
           {
-            name: "login-bug-challenge",
+            name: "broken-counter-challenge",
             private: true,
             version: "0.0.0",
             type: "module",
@@ -60,7 +67,7 @@ The login button enters a loading state but never resolves if the API errors out
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login Bug Challenge</title>
+    <title>Broken Counter</title>
     <style>body { background-color: #09090b; color: white; margin: 0; font-family: system-ui; }</style>
   </head>
   <body>
@@ -105,12 +112,12 @@ export default defineConfig({
       file: {
         contents: `import React from 'react'
 import ReactDOM from 'react-dom/client'
-import LoginForm from './App.tsx'
+import Counter from './Counter.tsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <LoginForm />
+    <Counter />
   </React.StrictMode>,
 )`,
       },
@@ -128,7 +135,7 @@ body {
   min-height: 100vh;
   margin: 0;
 }
-.login-container {
+.counter-container {
   background: #18181b;
   padding: 2rem;
   border-radius: 8px;
@@ -136,7 +143,13 @@ body {
   text-align: center;
   min-width: 300px;
 }
-.login-btn {
+.count-display {
+  font-size: 3rem;
+  font-weight: bold;
+  margin: 1rem 0;
+  color: #3b82f6;
+}
+.btn {
   background: #3b82f6;
   color: white;
   border: none;
@@ -145,62 +158,60 @@ body {
   cursor: pointer;
   font-size: 16px;
   width: 100%;
-  margin-top: 1rem;
 }
-.login-btn:hover { background: #2563eb; }
-.login-btn:disabled { background: #6b7280; cursor: not-allowed; }
-.error { color: #ef4444; margin-top: 1rem; }
+.btn:hover { background: #2563eb; }
 `,
       },
     },
-    "src/App.tsx": {
+    "src/Counter.tsx": {
       file: {
         contents: `import React, { useState } from 'react';
 
-export default function LoginForm() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+interface CounterProps {
+  initialValue?: number;
+}
 
-  const handleLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await fakeApi();
-    } catch (e) {
-      setError('Failed to login');
-    }
+export default function Counter({ initialValue = 0 }: CounterProps) {
+  const [count, setCount] = useState(initialValue);
+
+  const handleIncrement = () => {
+    setCount(count + 1);
   };
 
   return (
-    <div className="login-container">
-      <h1 style={{ marginBottom: '1rem' }}>Login</h1>
-      <button className="login-btn" onClick={handleLogin} disabled={loading}>
-        {loading ? 'Loading...' : 'Login'}
+    <div className="counter-container">
+      <h1>Counter</h1>
+      <div className="count-display" data-testid="count">
+        {initialValue}
+      </div>
+      <button className="btn" onClick={handleIncrement}>
+        Increment
       </button>
-      {error && <p className="error">{error}</p>}
     </div>
   );
-}
-
-const fakeApi = () => new Promise((_, reject) => setTimeout(reject, 1000));`,
+}`,
       },
     },
-    "src/App.test.tsx": {
+    "src/Counter.test.tsx": {
       readOnly: true,
       file: {
         contents: `import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { expect, test } from 'vitest';
-import LoginForm from './App';
+import Counter from './Counter';
 
-test('stops loading on error', async () => {
-  render(<LoginForm />);
-  const btn = screen.getByRole('button', { name: 'Login' });
-  fireEvent.click(btn);
+test('increments count when button is clicked', () => {
+  render(<Counter />);
+  const button = screen.getByRole('button', { name: /increment/i });
+  const countDisplay = screen.getByTestId('count');
   
-  await waitFor(() => {
-    expect(screen.getByRole('button', { name: 'Login' })).toBeDefined();
-  }, { timeout: 3000 });
+  expect(countDisplay.textContent).toBe('0');
+  
+  fireEvent.click(button);
+  expect(countDisplay.textContent).toBe('1');
+  
+  fireEvent.click(button);
+  expect(countDisplay.textContent).toBe('2');
 });`,
       },
     },

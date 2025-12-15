@@ -26,27 +26,59 @@ interface BattleEntry {
 const battleRegistry: BattleEntry[] = [
   // =============================================
   // TRACK: Frontend Debugging
-  // ARC: State & Effects
+  // ARC 1: Foundations — Reading the Bug
   // =============================================
   {
-    id: "login-spinner-bug",
+    id: "broken-counter",
     trackId: "frontend-debugging",
-    arcId: "state-and-effects",
+    arcId: "foundations",
     order: 1,
     loader: () =>
-      import("./challenges/login-bug").then((m) => m.loginBugBattle),
+      import("./challenges/broken-counter").then((m) => m.brokenCounterBattle),
   },
+  {
+    id: "list-rendering-mismatch",
+    trackId: "frontend-debugging",
+    arcId: "foundations",
+    order: 2,
+    loader: () =>
+      import("./challenges/list-rendering").then((m) => m.listRenderingBattle),
+  },
+  {
+    id: "button-disabled-incorrectly",
+    trackId: "frontend-debugging",
+    arcId: "foundations",
+    order: 3,
+    loader: () =>
+      import("./challenges/button-disabled").then((m) => m.buttonDisabledBattle),
+  },
+  // =============================================
+  // TRACK: Frontend Debugging
+  // ARC 2: State & Mutations
+  // =============================================
   {
     id: "shopping-cart-bug",
     trackId: "frontend-debugging",
-    arcId: "state-and-effects",
-    order: 2,
+    arcId: "state-and-mutations",
+    order: 1,
     loader: () =>
       import("./challenges/shopping-cart").then((m) => m.shoppingCartBattle),
   },
   // =============================================
   // TRACK: Frontend Debugging
-  // ARC: Render Performance
+  // ARC 3: Effects & Closures
+  // =============================================
+  {
+    id: "login-spinner-bug",
+    trackId: "frontend-debugging",
+    arcId: "effects-and-closures",
+    order: 1,
+    loader: () =>
+      import("./challenges/login-bug").then((m) => m.loginBugBattle),
+  },
+  // =============================================
+  // TRACK: Frontend Debugging
+  // ARC 5: Performance & Renders
   // =============================================
   {
     id: "slow-render",

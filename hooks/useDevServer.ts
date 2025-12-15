@@ -7,6 +7,11 @@ import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("System");
 
+interface DevServerProcess {
+  kill: () => void;
+  output: ReadableStream;
+}
+
 /**
  * Hook for managing development server lifecycle
  * Responsibilities:
@@ -23,7 +28,7 @@ export function useDevServer(
   
   // Track if we've already set up the server listener to prevent duplicates
   const hasServerListenerRef = useRef(false);
-  const serverProcessRef = useRef<any>(null);
+  const serverProcessRef = useRef<DevServerProcess | null>(null);
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),

@@ -3,7 +3,7 @@ import { Battle } from "../types";
 export const shoppingCartBattle: Battle = {
   id: "shopping-cart-bug",
   trackId: "frontend-debugging",
-  arcId: "state-and-effects",
+  arcId: "state-and-mutations",
   title: "Stale Cart Total",
   description: `
 # Bug Report: Cart Total Not Updating

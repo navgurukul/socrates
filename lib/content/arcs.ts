@@ -9,46 +9,58 @@ import { Arc } from "./types";
 // FRONTEND DEBUGGING TRACK ARCS
 // ============================================
 
-export const stateAndEffectsArc: Arc = {
-  id: "state-and-effects",
+export const foundationsArc: Arc = {
+  id: "foundations",
   trackId: "frontend-debugging",
-  title: "State & Effects",
+  title: "Foundations — Reading the Bug",
   description:
-    "Master React state management, side effects, and the component lifecycle.",
+    "Learn to read code systematically and identify surface-level UI bugs through careful inspection.",
   mentalModel:
-    "Understanding how state flows through components and when effects run",
+    "Disciplined observation before editing. Understanding what the code does versus what it should do.",
   order: 1,
+};
+
+export const stateAndMutationsArc: Arc = {
+  id: "state-and-mutations",
+  trackId: "frontend-debugging",
+  title: "State & Mutations",
+  description:
+    "Detect and fix incorrect state updates, including direct mutations and derived state mismatches.",
+  mentalModel:
+    "State is immutable. Mutations break React's update detection.",
+  order: 2,
+};
+
+export const effectsAndClosuresArc: Arc = {
+  id: "effects-and-closures",
+  trackId: "frontend-debugging",
+  title: "Effects & Closures",
+  description:
+    "Understand React's execution model, including when effects run and what they capture.",
+  mentalModel:
+    "Effects capture values at render time. Dependency arrays control when effects run.",
+  order: 3,
 };
 
 export const asyncDataFlowArc: Arc = {
   id: "async-data-flow",
   trackId: "frontend-debugging",
-  title: "Async Data Flow",
+  title: "Async & Data Flow",
   description:
-    "Debug API calls, loading states, error handling, and race conditions in the UI.",
-  mentalModel: "Tracking data through async boundaries and handling edge cases",
-  order: 2,
+    "Build intuition for async bugs, including race conditions, stuck loading states, and swallowed errors.",
+  mentalModel: "Track data through async boundaries. Handle all states: loading, success, error.",
+  order: 4,
 };
 
 export const renderPerformanceArc: Arc = {
   id: "render-performance",
   trackId: "frontend-debugging",
-  title: "Render Performance",
+  title: "Performance & Renders",
   description:
-    "Identify and fix unnecessary re-renders, optimize memoization, and improve UI responsiveness.",
+    "Identify non-obvious performance bugs caused by unnecessary renders or expensive computations.",
   mentalModel:
-    "Understanding the render cycle and when components should update",
-  order: 3,
-};
-
-export const formStateMachinesArc: Arc = {
-  id: "form-state-machines",
-  trackId: "frontend-debugging",
-  title: "Form State Machines",
-  description:
-    "Debug complex form validation, multi-step wizards, and controlled inputs.",
-  mentalModel: "Forms as state machines with transitions and validations",
-  order: 4,
+    "Understand when and why components re-render. Optimize only when necessary.",
+  order: 5,
 };
 
 // ============================================
@@ -137,10 +149,11 @@ export const brokenUserFlowsArc: Arc = {
 
 export const allArcs: Arc[] = [
   // Frontend Debugging
-  stateAndEffectsArc,
+  foundationsArc,
+  stateAndMutationsArc,
+  effectsAndClosuresArc,
   asyncDataFlowArc,
   renderPerformanceArc,
-  formStateMachinesArc,
   // Backend Debugging
   raceConditionsArc,
   n1QueriesArc,

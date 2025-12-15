@@ -26,7 +26,7 @@ Users are complaining that the application "freezes" or "lags" whenever they try
 5. Run Tests to ensure the app still functions correctly.
   `,
   difficulty: "Hard",
-  order: 1,
+  order: 2,
   tech: ["react", "performance", "vite"],
   files: {
     "package.json": {
