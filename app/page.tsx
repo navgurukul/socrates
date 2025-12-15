@@ -89,6 +89,12 @@ export default function Dashboard() {
             <br />
             Simulated environment. Real skills.
           </p>
+          {/* Link to Tracks Page */}
+          <div className="flex justify-center gap-4 pt-4">
+            <Link href="/tracks">
+              <Button>Browse Learning Tracks</Button>
+            </Link>
+          </div>
         </div>
 
         {/* Challenge Grid */}
