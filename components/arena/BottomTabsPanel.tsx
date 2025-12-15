@@ -15,6 +15,7 @@ interface BottomTabsPanelProps {
   files: Record<string, string>;
   testOutput: string;
   reviewData: ReviewData | null;
+  attemptCount: number;
 }
 
 export const BottomTabsPanel = memo(function BottomTabsPanel({
@@ -24,6 +25,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
   files,
   testOutput,
   reviewData,
+  attemptCount,
 }: BottomTabsPanelProps) {
   return (
     <Tabs
@@ -59,7 +61,12 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
         forceMount
         className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
       >
-        <AiTutor files={files} testOutput={testOutput} reviewData={reviewData} />
+        <AiTutor
+          files={files}
+          testOutput={testOutput}
+          reviewData={reviewData}
+          attemptCount={attemptCount}
+        />
       </TabsContent>
     </Tabs>
   );

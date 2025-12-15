@@ -15,16 +15,26 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat, Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, UIMessage } from "ai";
 import { type ReviewData } from "@/lib/store/battleStore";
+import { useDebugTraceStore } from "@/lib/store/debugTraceStore";
 
 interface AiTutorProps {
   files: Record<string, string>;
   testOutput: string;
   reviewData: ReviewData | null;
+  attemptCount: number;
 }
 
-export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
+export function AiTutor({
+  files,
+  testOutput,
+  reviewData,
+  attemptCount,
+}: AiTutorProps) {
   const [input, setInput] = useState("");
   const [contextRefreshKey, setContextRefreshKey] = useState(0);
+
+  // Debug trace store
+  const addEvent = useDebugTraceStore((state) => state.addEvent);
 
   // Create a Chat instance with transport configured for our API
   // Re-create transport when reviewData changes OR when context is manually refreshed
@@ -50,6 +60,7 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
   const isLoading = status === "streaming" || status === "submitted";
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastMessageCountRef = useRef(0);
 
   // Auto-scroll when messages or review changes
   useEffect(() => {
@@ -58,10 +69,24 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
     }
   }, [messages, reviewData]);
 
+  // Track AI hint received when assistant responds
+  useEffect(() => {
+    if (messages.length > lastMessageCountRef.current) {
+      const latestMessage = messages[messages.length - 1];
+      if (latestMessage.role === "assistant") {
+        addEvent({
+          type: "ai_hint_received",
+          timestamp: Date.now(),
+        });
+      }
+      lastMessageCountRef.current = messages.length;
+    }
+  }, [messages, addEvent]);
+
   // Refresh context when testOutput changes (after test run)
   useEffect(() => {
     if (testOutput) {
-      setContextRefreshKey(prev => prev + 1);
+      setContextRefreshKey((prev) => prev + 1);
     }
   }, [testOutput]);
 
@@ -84,6 +109,13 @@ export function AiTutor({ files, testOutput, reviewData }: AiTutorProps) {
 
     const userMessage = input;
     setInput("");
+
+    // Track AI hint request
+    addEvent({
+      type: "ai_hint_requested",
+      timestamp: Date.now(),
+      metadata: { attemptCount },
+    });
 
     await sendMessage({
       parts: [{ type: "text", text: userMessage }],

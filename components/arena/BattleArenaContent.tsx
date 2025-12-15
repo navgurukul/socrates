@@ -40,6 +40,7 @@ export function BattleArenaContent() {
     setTerminal,
     testOutput,
     reviewData,
+    attemptCount,
     setMonacoInstance,
     activeBottomTab,
     setActiveBottomTab,
@@ -148,6 +149,7 @@ export function BattleArenaContent() {
                 files={fileContents}
                 testOutput={testOutput}
                 reviewData={reviewData}
+                attemptCount={attemptCount}
               />
             </ResizablePanel>
           </ResizablePanelGroup>

@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { WebContainer } from "@webcontainer/api";
@@ -23,6 +24,7 @@ import { useContainerSync } from "@/hooks/useContainerSync";
 import { useBattleStore } from "@/lib/store/battleStore";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useUserStore } from "@/lib/store/userStore";
+import { useDebugTraceStore } from "@/lib/store/debugTraceStore";
 import { submitSuccess } from "@/lib/actions/progress";
 import { TABS } from "@/lib/config/constants";
 
@@ -110,11 +112,37 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   const [term, setTerm] = useState<XTerminal | null>(null);
   const [isEnvReady, setIsEnvReady] = useState(false);
 
+  // Debounce timer for file opened events
+  const fileOpenedTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastOpenedFileRef = useRef<string>("");
+
+  // Smart throttling for file edit events
+  const fileEditStateRef = useRef<
+    Record<
+      string,
+      {
+        isIdle: boolean;
+        lastLoggedAt: number;
+        lastContentLength: number;
+      }
+    >
+  >({});
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Idle detection timer (2 minutes)
+  const activityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
   // WebContainer
-  const { instance, isLoading: containerLoading, error: containerError } = useWebContainer();
+  const {
+    instance,
+    isLoading: containerLoading,
+    error: containerError,
+  } = useWebContainer();
 
   // Challenge loading
-  const { challenge, isLoading: challengeLoading } = useChallengeLoader(challengeId);
+  const { challenge, isLoading: challengeLoading } =
+    useChallengeLoader(challengeId);
 
   // Shell operations (challenge setup, tests, preview)
   const {
@@ -126,7 +154,11 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   } = useShell(instance, term);
 
   // File system operations
-  const { createFile: createFileImpl, deletePath, renamePath } = useFileSystem(instance);
+  const {
+    createFile: createFileImpl,
+    deletePath,
+    renamePath,
+  } = useFileSystem(instance);
 
   // Type bridge for IntelliSense
   const { injectIntelliSense } = useTypeBridge();
@@ -139,7 +171,9 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   const activeBottomTab = useBattleStore((state) => state.activeBottomTab);
   const setReviewData = useBattleStore((state) => state.setReviewData);
   const incrementAttempts = useBattleStore((state) => state.incrementAttempts);
-  const setActiveBottomTab = useBattleStore((state) => state.setActiveBottomTab);
+  const setActiveBottomTab = useBattleStore(
+    (state) => state.setActiveBottomTab
+  );
 
   // Editor Store - manages file state
   const fileContents = useEditorStore((state) => state.fileContents);
@@ -153,6 +187,13 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   // User Store
   const markSolved = useUserStore((state) => state.markSolved);
 
+  // Debug Trace Store
+  const startTrace = useDebugTraceStore((state) => state.startTrace);
+  const addEvent = useDebugTraceStore((state) => state.addEvent);
+  const completeTrace = useDebugTraceStore((state) => state.completeTrace);
+  const resetTrace = useDebugTraceStore((state) => state.resetTrace);
+  const trace = useDebugTraceStore((state) => state.trace);
+
   // Sync Monaco models with file contents
   useMonacoSync(monacoInstance, fileContents);
 
@@ -163,11 +204,14 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   useEffect(() => {
     if (instance && term && challenge) {
       setIsEnvReady(false);
+      // Reset trace and edit state when switching challenges
+      resetTrace();
+      fileEditStateRef.current = {};
       setupChallenge(challenge).then(() => {
         setIsEnvReady(true);
       });
     }
-  }, [instance, term, challenge, setupChallenge]);
+  }, [instance, term, challenge, setupChallenge, resetTrace]);
 
   // Trigger IntelliSense Bridge
   useEffect(() => {
@@ -175,6 +219,13 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
       injectIntelliSense(instance, monacoInstance);
     }
   }, [isEnvReady, instance, monacoInstance, injectIntelliSense]);
+
+  // Start debug trace when challenge loads and environment is ready
+  useEffect(() => {
+    if (challenge?.id && isEnvReady) {
+      startTrace(challenge.id);
+    }
+  }, [challenge?.id, isEnvReady, startTrace]);
 
   // Initialize file contents when challenge loads
   useEffect(() => {
@@ -192,24 +243,40 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
     setActiveFile(firstFile);
   }, [challenge, challengeLoading, setFileContents, setActiveFile]);
 
-  // Save progress and fetch review when user wins
+  // Track if we've already handled this "passed" session to avoid duplicate review fetches
+  const hasHandledPassRef = useRef(false);
+
+  // Reset the flag when status changes away from "passed"
   useEffect(() => {
-    if (status === "passed") {
+    if (status !== "passed") {
+      hasHandledPassRef.current = false;
+    }
+  }, [status]);
+
+  // Save progress and fetch review when user wins (only once per pass)
+  useEffect(() => {
+    if (status === "passed" && !hasHandledPassRef.current) {
+      hasHandledPassRef.current = true;
+
+      // Complete debug trace
+      completeTrace();
+
       markSolved(challengeId);
       setActiveBottomTab(TABS.TUTOR);
 
-      // Fetch code review for AITutor
+      // Fetch code review for AITutor (capture fileContents at time of pass)
+      const passedCode = fileContents;
       fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: fileContents, challengeId }),
+        body: JSON.stringify({ code: passedCode, challengeId }),
       })
         .then((res) => res.json())
         .then((data) => setReviewData(data))
         .catch((err) => console.error("Review fetch failed:", err));
 
-      // Save to Cloud (fire-and-forget)
-      submitSuccess(challengeId, fileContents, attemptCount).then((res) => {
+      // Save to Cloud (fire-and-forget) with code that passed
+      submitSuccess(challengeId, passedCode, attemptCount).then((res) => {
         if (res.error) console.error("Cloud save failed:", res.error);
       });
     }
@@ -221,14 +288,124 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
     attemptCount,
     setReviewData,
     setActiveBottomTab,
+    completeTrace,
   ]);
+
+  // Track test failures in debug trace
+  useEffect(() => {
+    if (status === "failed") {
+      addEvent({
+        type: "test_failed",
+        timestamp: Date.now(),
+        metadata: { testCount: attemptCount },
+      });
+    }
+  }, [status, attemptCount, addEvent]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (fileOpenedTimerRef.current) {
+        clearTimeout(fileOpenedTimerRef.current);
+      }
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      if (activityTimerRef.current) {
+        clearTimeout(activityTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Reset activity timer helper
+  const resetActivityTimer = useCallback(() => {
+    // Clear existing timer
+    if (activityTimerRef.current) {
+      clearTimeout(activityTimerRef.current);
+    }
+
+    // Start new idle detection timer
+    activityTimerRef.current = setTimeout(() => {
+      addEvent({
+        type: "idle_detected",
+        timestamp: Date.now(),
+      });
+    }, IDLE_TIMEOUT_MS);
+  }, [addEvent, IDLE_TIMEOUT_MS]);
+
+  // Start idle detection when environment is ready
+  useEffect(() => {
+    if (isEnvReady) {
+      resetActivityTimer();
+    }
+  }, [isEnvReady, resetActivityTimer]);
+
+  // Debug trace logging (development only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[DEBUG TRACE]", trace);
+    }
+  }, [trace]);
 
   // Wrapped actions
   const updateFileContent = useCallback(
     (path: string, content: string) => {
+      const oldContent = fileContents[path] || "";
       updateFile(path, content);
+
+      // Reset idle detection timer on activity
+      resetActivityTimer();
+
+      // Smart throttling for file_edited events
+      const THROTTLE_INTERVAL = 30000; // 30 seconds
+      const IDLE_TIMEOUT = 5000; // 5 seconds of no typing = idle
+      const now = Date.now();
+
+      // Initialize state for this file if needed
+      if (!fileEditStateRef.current[path]) {
+        fileEditStateRef.current[path] = {
+          isIdle: true,
+          lastLoggedAt: 0,
+          lastContentLength: oldContent.length,
+        };
+      }
+
+      const state = fileEditStateRef.current[path];
+      const timeSinceLastLog = now - state.lastLoggedAt;
+      const shouldLog =
+        state.isIdle || // First edit after idle
+        timeSinceLastLog >= THROTTLE_INTERVAL; // Or every 30 seconds
+
+      if (shouldLog) {
+        addEvent({
+          type: "file_edited",
+          timestamp: now,
+          metadata: {
+            path,
+            deltaSize: Math.abs(content.length - state.lastContentLength),
+          },
+        });
+
+        // Update state
+        fileEditStateRef.current[path] = {
+          isIdle: false,
+          lastLoggedAt: now,
+          lastContentLength: content.length,
+        };
+      }
+
+      // Reset idle timer - mark as idle after 5 seconds of no typing
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      idleTimerRef.current = setTimeout(() => {
+        // Mark all files as idle
+        Object.keys(fileEditStateRef.current).forEach((filePath) => {
+          fileEditStateRef.current[filePath].isIdle = true;
+        });
+      }, IDLE_TIMEOUT);
     },
-    [updateFile]
+    [fileContents, updateFile, addEvent, resetActivityTimer]
   );
 
   const createFile = useCallback(
@@ -254,8 +431,23 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
 
   const runTests = useCallback(async () => {
     incrementAttempts();
+
+    // Reset idle detection timer on activity
+    resetActivityTimer();
+
+    // Track test run
+    addEvent({
+      type: "test_run",
+      timestamp: Date.now(),
+    });
     await runTestsImpl(fileContents);
-  }, [runTestsImpl, fileContents, incrementAttempts]);
+  }, [
+    runTestsImpl,
+    fileContents,
+    incrementAttempts,
+    addEvent,
+    resetActivityTimer,
+  ]);
 
   const isRunning = status === "running";
 
@@ -277,7 +469,29 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
       // Files
       fileContents,
       activeFile,
-      setActiveFile,
+      setActiveFile: (path: string) => {
+        setActiveFile(path);
+
+        // Reset idle detection timer on activity
+        resetActivityTimer();
+
+        // Debounce file_opened events (300ms)
+        if (fileOpenedTimerRef.current) {
+          clearTimeout(fileOpenedTimerRef.current);
+        }
+
+        // Only track if it's a different file
+        if (lastOpenedFileRef.current !== path) {
+          fileOpenedTimerRef.current = setTimeout(() => {
+            addEvent({
+              type: "file_opened",
+              timestamp: Date.now(),
+              metadata: { path },
+            });
+            lastOpenedFileRef.current = path;
+          }, 300);
+        }
+      },
       updateFileContent,
 
       // File Operations
@@ -332,6 +546,8 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
       previewUrl,
       monacoInstance,
       setMonacoInstance,
+      addEvent,
+      resetActivityTimer,
     ]
   );
 
