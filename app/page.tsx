@@ -19,6 +19,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { DifficultyBadge } from "@/components/ui/difficulty-badge";
 import { useUserStore } from "@/lib/store/userStore";
 import { AuthButton } from "@/components/auth/AuthButton";
+import { DailyBattleCarousel } from "@/components/daily/DailyBattleCarousel";
 
 // Separate component for auth error handling that uses useSearchParams
 function AuthErrorBanner() {
@@ -97,69 +98,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Challenge Grid */}
-        {isLoading ? (
-          <LoadingScreen fullScreen={false} />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {challenges.map((challenge) => {
-              const isSolved = solvedIds.includes(challenge.id);
-
-              return (
-                <Card
-                  key={challenge.id}
-                  className={`bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 transition-all duration-300 group ${
-                    isSolved ? "border-emerald-900/50" : ""
-                  }`}
-                >
-                  <CardHeader>
-                    <div className="flex justify-between items-start mb-4">
-                      {/* Tech Stack Badges */}
-                      <div className="flex gap-2 flex-wrap">
-                        {challenge.tech.map((t) => (
-                          <Badge
-                            key={t}
-                            variant="secondary"
-                            className="text-[10px] px-1.5 h-5 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 uppercase tracking-wider"
-                          >
-                            {t}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      {/* Difficulty Badge */}
-                      <DifficultyBadge difficulty={challenge.difficulty} />
-                    </div>
-
-                    <CardTitle className="text-xl text-white group-hover:text-emerald-400 transition-colors flex items-center gap-2">
-                      {challenge.title}
-                      {isSolved && (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                      )}
-                    </CardTitle>
-
-                    <CardDescription className="text-zinc-400 line-clamp-2 mt-2 min-h-10">
-                      {/* We render a snippet of the markdown description, stripped of special chars */}
-                      {challenge.description
-                        .replace(/[#*`]/g, "")
-                        .slice(0, 100)}
-                      ...
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardFooter>
-                    <Link href={`/battle/${challenge.id}`} className="w-full">
-                      <Button className="w-full bg-zinc-100 text-zinc-900 hover:bg-emerald-500 hover:text-white transition-all font-semibold gap-2">
-                        {isSolved ? "Replay Challenge" : "Start Debugging"}
-                        <Play className="w-4 h-4 fill-current" />
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        {/* Daily Challenge Carousel */}
+        <DailyBattleCarousel />
       </div>
     </main>
   );

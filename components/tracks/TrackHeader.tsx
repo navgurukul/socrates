@@ -49,8 +49,8 @@ export function TrackHeader({ track, progress }: TrackHeaderProps) {
             Primary Skill:
           </span>
           <Badge
-            variant="outline"
-            className="text-sm bg-zinc-800 border-zinc-700"
+          // variant="outline"
+          // className="text-sm bg-zinc-800 border-zinc-700"
           >
             {track.primarySkill}
           </Badge>

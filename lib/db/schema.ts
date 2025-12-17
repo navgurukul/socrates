@@ -7,6 +7,8 @@ import {
   integer,
   vector,
   index,
+  date,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // 1. Users Table
@@ -74,3 +76,48 @@ export const embeddings = pgTable(
     ),
   })
 );
+
+// ============================================
+// DAILY BATTLES
+// ============================================
+
+// 4. Daily Battle Schedule
+// Admin-curated schedule mapping dates to challenges
+export const dailySchedule = pgTable("daily_schedule", {
+  date: date("date").primaryKey(), // YYYY-MM-DD, interpreted per user timezone
+  challengeId: text("challenge_id").notNull(), // e.g. "shopping-cart-bug"
+  theme: text("theme"), // Optional: "Flexbox Friday", "Async Monday", etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// 5. Daily Battle Progress
+// Tracks user completion of daily battles
+export const dailyProgress = pgTable(
+  "daily_progress",
+  {
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    date: date("date").notNull(), // User's local date when they completed it
+    challengeId: text("challenge_id").notNull(), // Which challenge they solved that day
+    completedAt: timestamp("completed_at"), // UTC timestamp of completion
+    status: text("status")
+      .$type<"solved" | "failed" | "skipped">()
+      .default("skipped"),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.date] }),
+  })
+);
+
+// 6. User Streaks
+// Cached streak data for performance
+export const userStreaks = pgTable("user_streaks", {
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .primaryKey(),
+  currentStreak: integer("current_streak").default(0),
+  maxStreak: integer("max_streak").default(0),
+  lastCompletedDate: date("last_completed_date"), // User's local date of last completion
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
