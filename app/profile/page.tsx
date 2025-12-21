@@ -22,7 +22,10 @@ export default async function ProfilePage() {
         {/* Back Button */}
         <div className="flex items-center justify-between">
           <Link href="/">
-            <Button variant="ghost" className="gap-2 text-zinc-400 hover:text-white">
+            <Button
+              variant="ghost"
+              className="gap-2 text-zinc-400 hover:text-white"
+            >
               <ArrowLeft className="w-4 h-4" />
               Back to Home
             </Button>
@@ -35,18 +38,18 @@ export default async function ProfilePage() {
           streaks={profileData.streaks}
           stats={profileData.stats}
         />
+        {/* Activity Heatmap */}
 
         {/* Two-column grid on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Neural Analysis */}
           <NeuralLink insights={profileData.insights} />
 
-          {/* Activity Heatmap */}
-          <ActivityHeatmap activity={profileData.activity} />
+          {/* Battle History - Full Width */}
+          <BattleHistory userId={profileData.user.id} />
         </div>
 
-        {/* Battle History - Full Width */}
-        <BattleHistory userId={profileData.user.id} />
+        <ActivityHeatmap activity={profileData.activity} />
       </div>
     </main>
   );

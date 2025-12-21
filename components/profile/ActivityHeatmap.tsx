@@ -56,8 +56,8 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
   const heatmapData = generateHeatmapData(activity);
 
   // Group by weeks for display
-  const weeks: Array<Array<typeof heatmapData[0]>> = [];
-  let currentWeek: Array<typeof heatmapData[0]> = [];
+  const weeks: Array<Array<(typeof heatmapData)[0]>> = [];
+  let currentWeek: Array<(typeof heatmapData)[0]> = [];
 
   // Start from the first day (which might not be a Sunday)
   const firstDate = new Date(heatmapData[0].date);
@@ -91,12 +91,12 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
         <TooltipProvider>
           <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600">
             <div
-              className="flex gap-[2px] min-w-max"
+              className="flex gap-[2px] min-w-max justify-between p-1"
               role="grid"
               aria-label="Activity heatmap showing daily battle completions"
             >
               {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-[2px]">
+                <div key={weekIndex} className="flex flex-col gap-[2px] ">
                   {week.map((day, dayIndex) => {
                     // Skip empty cells
                     if (!day.date) {
@@ -120,7 +120,7 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              "w-3 h-3 rounded-sm transition-all cursor-pointer hover:scale-110 hover:ring-1 hover:ring-zinc-500",
+                              "w-4 h-4 rounded-xs transition-all cursor-pointer hover:scale-110 hover:ring-1 hover:ring-zinc-500",
                               day.level === 0 && "bg-zinc-900",
                               day.level === 1 && "bg-emerald-950",
                               day.level === 2 && "bg-emerald-800",
@@ -136,7 +136,8 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                           <TooltipContent>
                             <p className="text-xs">
                               {day.battleCount} battle
-                              {day.battleCount !== 1 ? "s" : ""} on {formattedDate}
+                              {day.battleCount !== 1 ? "s" : ""} on{" "}
+                              {formattedDate}
                             </p>
                           </TooltipContent>
                         )}
@@ -152,11 +153,11 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
           <div className="flex items-center gap-2 mt-4 text-xs text-zinc-500">
             <span>Less</span>
             <div className="flex gap-1">
-              <div className="w-3 h-3 rounded-sm bg-zinc-900" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-950" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-800" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-600" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-400" />
+              <div className="w-4 h-4 rounded-xs bg-zinc-900" />
+              <div className="w-4 h-4 rounded-xs bg-emerald-950" />
+              <div className="w-4 h-4 rounded-xs bg-emerald-800" />
+              <div className="w-4 h-4 rounded-xs bg-emerald-600" />
+              <div className="w-4 h-4 rounded-xs bg-emerald-400" />
             </div>
             <span>More</span>
           </div>
