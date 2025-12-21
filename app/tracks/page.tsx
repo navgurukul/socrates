@@ -2,11 +2,7 @@ import { Suspense } from "react";
 import { TrackCard } from "@/components/tracks/TrackCard";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { getTracksWithProgress } from "@/lib/actions/track-progress";
-import {
-  PageContainer,
-  PageNavSection,
-  PageHeader,
-} from "@/components/common";
+import { PageContainer, PageNavSection, PageHeader } from "@/components/common";
 
 export const metadata = {
   title: "Learning Tracks | Bug Battle Arena",

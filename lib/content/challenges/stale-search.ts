@@ -3,7 +3,7 @@ import { Battle } from "../types";
 export const staleSearchResultsBattle: Battle = {
   id: "stale-search-results",
   trackId: "frontend-debugging",
-  arcId: "async-and-data-flow",
+  arcId: "async-data-flow",
   title: "The Stale Search Result",
   description: `
 # Bug Report: Search Results Flicker or Revert

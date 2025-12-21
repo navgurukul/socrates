@@ -32,7 +32,8 @@ async function TrackDetailContent({ trackId }: { trackId: string }) {
           <div className="text-center py-16 space-y-4">
             <h2 className="text-2xl font-bold text-zinc-400">Coming Soon</h2>
             <p className="text-zinc-500">
-              Content for this track is currently in development. Check back soon!
+              Content for this track is currently in development. Check back
+              soon!
             </p>
           </div>
         ) : (
