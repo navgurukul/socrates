@@ -26,6 +26,7 @@ export interface UserProfileData {
     id: string;
     topic: string | null;
     insight: string;
+    category: "strength" | "weakness" | "pattern" | null;
     createdAt: Date | null;
   }>;
   activity: Array<{
@@ -106,6 +107,7 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
         id: insight.id,
         topic: insight.topic,
         insight: insight.insight,
+        category: insight.category,
         createdAt: insight.createdAt,
       })),
       activity: activityData,
@@ -163,9 +165,7 @@ async function getActivityData(
 /**
  * Get battle statistics (total challenges vs completed)
  */
-async function getBattleStats(
-  userId: string
-): Promise<{
+async function getBattleStats(userId: string): Promise<{
   totalBattles: number;
   completedBattles: number;
   completionRate: number;
@@ -188,7 +188,9 @@ async function getBattleStats(
     const totalBattles = completedBattles;
 
     const completionRate =
-      totalBattles > 0 ? Math.round((completedBattles / totalBattles) * 100) : 0;
+      totalBattles > 0
+        ? Math.round((completedBattles / totalBattles) * 100)
+        : 0;
 
     return {
       totalBattles,

@@ -49,6 +49,7 @@ export const userMemories = pgTable("user_memories", {
   challengeId: text("challenge_id"), // Which battle this insight came from
   topic: text("topic"), // e.g. "React Hooks", "State Management"
   insight: text("insight").notNull(), // e.g. "User often forgets dependency arrays"
+  category: text("category").$type<"strength" | "weakness" | "pattern">(), // AI-classified insight type
   traceSummary: jsonb("trace_summary"), // Compact metrics: attempts, duration, errors, etc.
   createdAt: timestamp("created_at").defaultNow(),
 });

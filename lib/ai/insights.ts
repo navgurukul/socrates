@@ -55,12 +55,13 @@ function summarizeTrace(trace: DebugTrace): TraceSummary {
 
 /**
  * Generate a learning insight using an LLM
+ * Returns structured output with category and insight text
  */
 async function generateInsight(
   traceSummary: TraceSummary,
   attemptCount: number,
   challengeId: string
-): Promise<string> {
+): Promise<{ category: "strength" | "weakness" | "pattern"; insight: string }> {
   const prompt = `You are analyzing a user's debug session for a coding challenge.
 
 Challenge ID: ${challengeId}
@@ -73,32 +74,69 @@ AI Hints Requested: ${traceSummary.aiHintsRequested}
 File Edits: ${traceSummary.fileEdits}
 Total Attempts: ${attemptCount}
 
-Based on this data, generate a concise learning insight (1-2 sentences) that describes:
-- What this user tends to struggle with or their debugging pattern
-- What concept they might need to focus on
+Based on this data, generate a learning insight about this user's debugging session.
 
-Be specific but conceptual. Avoid mentioning exact code. Focus on learning patterns.
+You must respond with ONLY a valid JSON object (no markdown, no code blocks) in this exact format:
+{
+  "category": "strength" | "weakness" | "pattern",
+  "insight": "1-2 sentence description"
+}
 
-Example insights:
-- "You tend to rely heavily on trial-and-error testing rather than tracing state changes systematically."
-- "You often request AI hints early in the process, suggesting lower confidence in independent debugging."
-- "You solve challenges quickly with minimal tests, indicating strong pattern recognition skills."
+Category Guidelines:
+- "strength": User demonstrated exceptional skills, efficiency, or quick problem-solving (e.g., solved quickly with few attempts, minimal AI help)
+- "weakness": User struggled significantly, needed excessive help, or showed gaps in understanding (e.g., many failed attempts, heavy reliance on AI hints)
+- "pattern": Neutral observation about their approach or debugging style (e.g., methodical testing, preference for certain strategies)
 
-Generate the insight:`;
+Insight Guidelines:
+- Be specific but conceptual
+- Focus on learning patterns and debugging approach
+- Avoid mentioning exact code
+- Be encouraging even when identifying weaknesses
+
+Examples:
+{"category": "weakness", "insight": "You tend to rely heavily on trial-and-error testing rather than tracing state changes systematically."}
+{"category": "strength", "insight": "You solve challenges quickly with minimal tests, indicating strong pattern recognition skills."}
+{"category": "pattern", "insight": "You prefer to request AI hints early in the debugging process rather than exploring independently first."}`;
 
   const result = await streamText({
     model: models.tutor,
     prompt,
-    maxTokens: 100,
+    maxTokens: 150,
   });
 
   // Collect streamed text
-  let insight = "";
+  let responseText = "";
   for await (const chunk of result.textStream) {
-    insight += chunk;
+    responseText += chunk;
   }
 
-  return insight.trim();
+  // Parse JSON response
+  try {
+    // Clean any potential markdown code blocks
+    const cleanedText = responseText.replace(/```json\n?|```\n?/g, "").trim();
+    const parsed = JSON.parse(cleanedText);
+
+    // Validate response structure
+    if (
+      !parsed.category ||
+      !parsed.insight ||
+      !["strength", "weakness", "pattern"].includes(parsed.category)
+    ) {
+      throw new Error("Invalid response structure");
+    }
+
+    return {
+      category: parsed.category as "strength" | "weakness" | "pattern",
+      insight: parsed.insight.trim(),
+    };
+  } catch (error) {
+    console.error("[Insight Generation] Failed to parse JSON:", responseText);
+    // Fallback to pattern with raw text
+    return {
+      category: "pattern",
+      insight: responseText.trim().substring(0, 200),
+    };
+  }
 }
 
 /**
@@ -202,7 +240,7 @@ export async function createLearningInsight(params: {
     const traceSummary = summarizeTrace(trace);
 
     // 2. Generate learning insight using LLM
-    const insightText = await generateInsight(
+    const { category, insight: insightText } = await generateInsight(
       traceSummary,
       attemptCount,
       challengeId
@@ -220,6 +258,7 @@ export async function createLearningInsight(params: {
         challengeId,
         topic: challengeId.split("-").slice(0, 2).join(" "), // Derive topic from challenge ID
         insight: insightText,
+        category, // Store AI-generated category
         traceSummary,
       })
       .returning({ id: userMemories.id });

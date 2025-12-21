@@ -10,49 +10,12 @@ interface InsightData {
   id: string;
   topic: string | null;
   insight: string;
+  category: "strength" | "weakness" | "pattern" | null;
   createdAt: Date | null;
 }
 
 interface NeuralLinkProps {
   insights: InsightData[];
-}
-
-// Categorize insights based on content keywords
-function categorizeInsight(
-  insight: string,
-  topic: string | null
-): "strength" | "weakness" | "pattern" {
-  const lowerInsight = insight.toLowerCase();
-  const lowerTopic = topic?.toLowerCase() || "";
-
-  // Check for weakness indicators
-  if (
-    lowerInsight.includes("forgot") ||
-    lowerInsight.includes("missing") ||
-    lowerInsight.includes("error") ||
-    lowerInsight.includes("mistake") ||
-    lowerInsight.includes("issue") ||
-    lowerInsight.includes("problem") ||
-    lowerInsight.includes("struggle") ||
-    lowerTopic.includes("weakness")
-  ) {
-    return "weakness";
-  }
-
-  // Check for strength indicators
-  if (
-    lowerInsight.includes("correctly") ||
-    lowerInsight.includes("successfully") ||
-    lowerInsight.includes("good") ||
-    lowerInsight.includes("well") ||
-    lowerInsight.includes("strong") ||
-    lowerTopic.includes("strength")
-  ) {
-    return "strength";
-  }
-
-  // Default to pattern
-  return "pattern";
 }
 
 export function NeuralLink({ insights }: NeuralLinkProps) {
@@ -76,10 +39,8 @@ export function NeuralLink({ insights }: NeuralLinkProps) {
           <ScrollArea className="max-h-[400px] pr-4">
             <div className="grid gap-3" role="list">
               {insights.slice(0, 5).map((insight) => {
-                const category = categorizeInsight(
-                  insight.insight,
-                  insight.topic
-                );
+                // Use stored category, default to 'pattern' if null
+                const category = insight.category || "pattern";
 
                 // Icon and color based on category
                 const IconComponent =
