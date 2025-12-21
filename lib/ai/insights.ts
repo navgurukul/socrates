@@ -117,16 +117,20 @@ async function generateEmbedding(text: string): Promise<number[]> {
 /**
  * Delete user_memories and their corresponding embeddings
  */
-async function deleteInsightsWithEmbeddings(memoryIds: string[]): Promise<void> {
+async function deleteInsightsWithEmbeddings(
+  memoryIds: string[]
+): Promise<void> {
   if (memoryIds.length === 0) return;
 
   // Delete embeddings first (referential integrity)
-  await db.delete(embeddings).where(
-    and(
-      inArray(embeddings.referenceId, memoryIds),
-      eq(embeddings.type, "user_insight")
-    )
-  );
+  await db
+    .delete(embeddings)
+    .where(
+      and(
+        inArray(embeddings.referenceId, memoryIds),
+        eq(embeddings.type, "user_insight")
+      )
+    );
 
   // Then delete user_memories
   await db.delete(userMemories).where(inArray(userMemories.id, memoryIds));

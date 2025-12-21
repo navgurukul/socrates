@@ -16,7 +16,9 @@ function extractLastUserMessageText(messages: UIMessage[]): string | undefined {
   // Handle UIMessage parts structure
   if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
     const textContent = lastMessage.parts
-      .filter((part): part is { type: "text"; text: string } => part.type === "text")
+      .filter(
+        (part): part is { type: "text"; text: string } => part.type === "text"
+      )
       .map((part) => part.text)
       .join(" ")
       .trim();
