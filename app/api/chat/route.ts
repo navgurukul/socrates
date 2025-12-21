@@ -1,7 +1,35 @@
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, UIMessage } from "ai";
 import { models } from "@/lib/ai/models";
 import { createClient } from "@/lib/supabase/server";
 import { retrieveUserInsights } from "@/lib/ai/retrieval";
+
+/**
+ * Extract the text content from the last user message
+ * Handles UIMessage structure with parts array
+ */
+function extractLastUserMessageText(messages: UIMessage[]): string | undefined {
+  const userMessages = messages.filter((m) => m.role === "user");
+  if (userMessages.length === 0) return undefined;
+
+  const lastMessage = userMessages[userMessages.length - 1];
+
+  // Handle UIMessage parts structure
+  if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
+    const textContent = lastMessage.parts
+      .filter((part): part is { type: "text"; text: string } => part.type === "text")
+      .map((part) => part.text)
+      .join(" ")
+      .trim();
+    if (textContent) return textContent;
+  }
+
+  // Fallback: legacy content field
+  if (typeof lastMessage.content === "string") {
+    return lastMessage.content.trim();
+  }
+
+  return undefined;
+}
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -27,9 +55,11 @@ export async function POST(req: Request) {
       } = await supabase.auth.getUser();
 
       if (user && challengeId) {
+        const lastUserMessageText = extractLastUserMessageText(messages);
         const insights = await retrieveUserInsights({
           userId: user.id,
           challengeId,
+          queryText: lastUserMessageText, // Semantic search using user's question
           limit: 3,
         });
 

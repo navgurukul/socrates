@@ -5,7 +5,12 @@ import { db } from "@/lib/db";
 import { userMemories, embeddings } from "@/lib/db/schema";
 import { models } from "@/lib/ai/models";
 import { google } from "@ai-sdk/google";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import type { DebugTrace } from "@/lib/store/debugTraceStore";
+
+// Insight volume limits
+const MAX_INSIGHTS_PER_USER = 50;
+const MAX_INSIGHTS_PER_CHALLENGE = 5;
 
 /**
  * Trace summary computed from debug events
@@ -110,6 +115,73 @@ async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 /**
+ * Delete user_memories and their corresponding embeddings
+ */
+async function deleteInsightsWithEmbeddings(memoryIds: string[]): Promise<void> {
+  if (memoryIds.length === 0) return;
+
+  // Delete embeddings first (referential integrity)
+  await db.delete(embeddings).where(
+    and(
+      inArray(embeddings.referenceId, memoryIds),
+      eq(embeddings.type, "user_insight")
+    )
+  );
+
+  // Then delete user_memories
+  await db.delete(userMemories).where(inArray(userMemories.id, memoryIds));
+}
+
+/**
+ * Clean up old insights to enforce volume limits
+ * Best-effort: errors are logged but don't fail the main flow
+ */
+async function cleanupOldInsights(
+  userId: string,
+  challengeId: string
+): Promise<void> {
+  try {
+    // 1. Per-challenge cleanup: keep only the 5 most recent
+    const challengeInsights = await db
+      .select({ id: userMemories.id, createdAt: userMemories.createdAt })
+      .from(userMemories)
+      .where(
+        and(
+          eq(userMemories.userId, userId),
+          eq(userMemories.challengeId, challengeId)
+        )
+      )
+      .orderBy(desc(userMemories.createdAt));
+
+    if (challengeInsights.length > MAX_INSIGHTS_PER_CHALLENGE) {
+      const toDelete = challengeInsights.slice(MAX_INSIGHTS_PER_CHALLENGE);
+      await deleteInsightsWithEmbeddings(toDelete.map((i) => i.id));
+      console.log(
+        `[Insight Cleanup] Deleted ${toDelete.length} excess insights for challenge ${challengeId}`
+      );
+    }
+
+    // 2. Per-user cleanup: keep only the 50 most recent
+    const userInsights = await db
+      .select({ id: userMemories.id, createdAt: userMemories.createdAt })
+      .from(userMemories)
+      .where(eq(userMemories.userId, userId))
+      .orderBy(desc(userMemories.createdAt));
+
+    if (userInsights.length > MAX_INSIGHTS_PER_USER) {
+      const toDelete = userInsights.slice(MAX_INSIGHTS_PER_USER);
+      await deleteInsightsWithEmbeddings(toDelete.map((i) => i.id));
+      console.log(
+        `[Insight Cleanup] Deleted ${toDelete.length} excess insights for user ${userId}`
+      );
+    }
+  } catch (error) {
+    // Best-effort: log but don't fail the main flow
+    console.error("[Insight Cleanup Error]", error);
+  }
+}
+
+/**
  * Core pipeline: Create a learning insight from a completed battle
  */
 export async function createLearningInsight(params: {
@@ -167,6 +239,9 @@ export async function createLearningInsight(params: {
     console.log(
       `[Insight] Created for user ${userId}, challenge ${challengeId}: "${insightText}"`
     );
+
+    // 6. Cleanup old insights to enforce volume limits
+    await cleanupOldInsights(userId, challengeId);
 
     return { success: true, insightId: userMemory.id };
   } catch (error) {
