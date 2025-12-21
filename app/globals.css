@@ -122,3 +122,55 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Scrollbar Styles */
+@layer utilities {
+  /* Thin scrollbar with auto-hide */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(63 63 70); /* zinc-700 */
+    border-radius: 3px;
+    transition: background-color 0.2s;
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(82 82 91); /* zinc-600 */
+  }
+
+  /* Auto-hide scrollbar */
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb,
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    opacity: 1;
+  }
+
+  /* Track transparency */
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Thumb colors */
+  .scrollbar-thumb-zinc-700::-webkit-scrollbar-thumb {
+    background-color: rgb(63 63 70);
+  }
+
+  .scrollbar-thumb-zinc-600:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(82 82 91);
+  }
+}

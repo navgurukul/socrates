@@ -2,7 +2,7 @@
 
 ## Recent Updates ✨
 
-**Last Updated**: December 2024
+**Last Updated**: December 2025
 
 ### Latest Features & Improvements
 
@@ -129,6 +129,7 @@ Platform → Tracks → Arcs → Battles
   ```
   /app                    # Next.js App Router pages & API routes
     /api/chat             # AI Tutor chat endpoint
+    /api/insight          # AI Insight creation endpoint (Memory Loop)
     /api/review           # Code Review endpoint
     /battle/[id]          # Battle page (dynamic route)
     /tracks               # Learning tracks pages
@@ -328,7 +329,8 @@ The platform now uses Vercel AI SDK v5 with improved streaming and context manag
 **Implementation Pattern:**
 
 ```typescript
-import { Chat, DefaultChatTransport, UIMessage } from "ai";
+import { useChat, Chat } from "@ai-sdk/react";
+import { DefaultChatTransport, UIMessage } from "ai";
 
 const chat = useMemo(() => {
   const transport = new DefaultChatTransport<UIMessage>({
@@ -339,6 +341,8 @@ const chat = useMemo(() => {
   });
   return new Chat({ transport });
 }, [contextRefreshKey, reviewData]);
+
+const { messages, sendMessage, status } = useChat<UIMessage>({ chat });
 ```
 
 **Benefits:**
@@ -547,7 +551,7 @@ const completionPercentage = (completedBattles / totalBattles) * 100;
 
 | Arc                   | Mental Model                                                  | Battles |
 | --------------------- | ------------------------------------------------------------- | ------- |
-| Foundations           | Disciplined observation before editing                        | 2       |
+| Foundations           | Disciplined observation before editing                        | 3       |
 | State & Mutations     | State is immutable. Mutations break React's update detection. | 1       |
 | Effects & Closures    | Effects capture values at render time                         | 1       |
 | Async & Data Flow     | Track data through async boundaries. Handle all states.       | 0       |
