@@ -91,12 +91,12 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
         <TooltipProvider>
           <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600">
             <div
-              className="flex gap-[2px] min-w-max justify-between p-1"
+              className="flex gap-0.5 min-w-max justify-between p-1"
               role="grid"
               aria-label="Activity heatmap showing daily battle completions"
             >
               {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-[2px] ">
+                <div key={weekIndex} className="flex flex-col gap-0.5 ">
                   {week.map((day, dayIndex) => {
                     // Skip empty cells
                     if (!day.date) {

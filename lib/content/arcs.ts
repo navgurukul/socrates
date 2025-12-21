@@ -26,8 +26,7 @@ export const stateAndMutationsArc: Arc = {
   title: "State & Mutations",
   description:
     "Detect and fix incorrect state updates, including direct mutations and derived state mismatches.",
-  mentalModel:
-    "State is immutable. Mutations break React's update detection.",
+  mentalModel: "State is immutable. Mutations break React's update detection.",
   order: 2,
 };
 
@@ -48,7 +47,8 @@ export const asyncDataFlowArc: Arc = {
   title: "Async & Data Flow",
   description:
     "Build intuition for async bugs, including race conditions, stuck loading states, and swallowed errors.",
-  mentalModel: "Track data through async boundaries. Handle all states: loading, success, error.",
+  mentalModel:
+    "Track data through async boundaries. Handle all states: loading, success, error.",
   order: 4,
 };
 

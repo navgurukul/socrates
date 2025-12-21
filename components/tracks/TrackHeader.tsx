@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "./ProgressBar";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
+import { BackButton } from "@/components/common";
 import type { Track } from "@/lib/content/types";
 import type { ProgressData } from "@/lib/actions/track-progress";
 
@@ -16,10 +16,7 @@ export function TrackHeader({ track, progress }: TrackHeaderProps) {
   return (
     <div className="space-y-6">
       {/* Back Navigation */}
-      <Link href="/tracks" className="flex items-center gap-2">
-        <ArrowLeft className="w-4 h-4" />
-        Back to Tracks
-      </Link>
+      <BackButton href="/tracks" label="Back to Tracks" />
 
       {/* Track Title and Info */}
       <div className="space-y-4">

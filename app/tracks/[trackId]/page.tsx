@@ -3,9 +3,8 @@ import { notFound } from "next/navigation";
 import { TrackHeader } from "@/components/tracks/TrackHeader";
 import { ArcTimeline } from "@/components/tracks/ArcTimeline";
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import { AuthButton } from "@/components/auth/AuthButton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { getTrackDetail } from "@/lib/actions/track-progress";
+import { PageContainer, PageAuthButton } from "@/components/common";
 
 interface TrackDetailPageProps {
   params: {
@@ -49,21 +48,15 @@ async function TrackDetailContent({ trackId }: { trackId: string }) {
 export default function TrackDetailPage({ params }: TrackDetailPageProps) {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
-      <ScrollArea className="h-screen">
-        <div className="p-8">
-          <div className="mx-auto max-w-6xl relative z-10">
-            {/* Auth Button */}
-            <div className="w-full flex justify-end mb-6">
-              <AuthButton />
-            </div>
+      <PageContainer withScrollArea maxWidth="6xl">
+        {/* Auth Button */}
+        <PageAuthButton />
 
-            {/* Content */}
-            <Suspense fallback={<LoadingScreen fullScreen={false} />}>
-              <TrackDetailContent trackId={params.trackId} />
-            </Suspense>
-          </div>
-        </div>
-      </ScrollArea>
+        {/* Content */}
+        <Suspense fallback={<LoadingScreen fullScreen={false} />}>
+          <TrackDetailContent trackId={params.trackId} />
+        </Suspense>
+      </PageContainer>
     </main>
   );
 }

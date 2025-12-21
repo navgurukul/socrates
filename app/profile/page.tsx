@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { getUserProfile } from "@/lib/actions/user-profile";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { NeuralLink } from "@/components/profile/NeuralLink";
 import { ActivityHeatmap } from "@/components/profile/ActivityHeatmap";
 import { BattleHistory } from "@/components/profile/BattleHistory";
+import { BackButton } from "@/components/common";
 
 export default async function ProfilePage() {
   const profileData = await getUserProfile();
@@ -20,17 +18,7 @@ export default async function ProfilePage() {
     <main className="min-h-screen bg-zinc-950 p-4 md:p-8 text-white">
       <div className="mx-auto max-w-5xl space-y-8">
         {/* Back Button */}
-        <div className="flex items-center justify-between">
-          <Link href="/">
-            <Button
-              variant="ghost"
-              className="gap-2 text-zinc-400 hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
+        <BackButton href="/" label="Back to Home" />
 
         {/* Header Section */}
         <ProfileHeader

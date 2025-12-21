@@ -2,9 +2,9 @@
 
 import { memo } from "react";
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface BattleHeaderProps {
   challengeTitle: string;
@@ -19,18 +19,18 @@ export const BattleHeader = memo(function BattleHeader({
   isRunning,
   disabled,
 }: BattleHeaderProps) {
+  const router = useRouter();
+
+  const handleBack = () => {
+    router.back();
+  };
   return (
     <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
       <div className="flex items-center gap-4">
-        <Link href="/">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-zinc-400 hover:text-white"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
+        <ArrowLeft
+          className="cursor-pointer h-5 w-5 text-white hover:text-zinc-400"
+          onClick={() => handleBack()}
+        />
         <div className="flex flex-col">
           <h1 className="text-sm font-bold leading-none">{challengeTitle}</h1>
           <span className="text-xs text-zinc-500">Bug Battle</span>

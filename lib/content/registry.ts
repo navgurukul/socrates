@@ -50,7 +50,9 @@ const battleRegistry: BattleEntry[] = [
     arcId: "foundations",
     order: 3,
     loader: () =>
-      import("./challenges/button-disabled").then((m) => m.buttonDisabledBattle),
+      import("./challenges/button-disabled").then(
+        (m) => m.buttonDisabledBattle
+      ),
   },
   // =============================================
   // TRACK: Frontend Debugging
@@ -76,6 +78,22 @@ const battleRegistry: BattleEntry[] = [
     loader: () =>
       import("./challenges/login-bug").then((m) => m.loginBugBattle),
   },
+
+  // =============================================
+  // TRACK: Frontend Debugging
+  // ARC 4: Async & Data Flow
+  // =============================================
+  {
+    id: "stale-search-results",
+    trackId: "frontend-debugging",
+    arcId: "async-data-flow",
+    order: 1,
+    loader: () =>
+      import("./challenges/stale-search").then(
+        (m) => m.staleSearchResultsBattle
+      ),
+  },
+
   // =============================================
   // TRACK: Frontend Debugging
   // ARC 5: Performance & Renders
