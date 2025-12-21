@@ -39,15 +39,17 @@ export const progress = pgTable("challenge_progress", {
   completedAt: timestamp("completed_at"),
 });
 
-// 3. AI Memories (Future RAG)
-// We store summaries of their coding style here
+// 3. AI Memories (Learning Insights from Debug Traces)
+// We store summaries of their coding patterns and learning moments
 export const userMemories = pgTable("user_memories", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .references(() => users.id)
     .notNull(),
-  topic: text("topic"), // e.g. "React Hooks"
-  insight: text("insight"), // e.g. "User often forgets dependency arrays"
+  challengeId: text("challenge_id"), // Which battle this insight came from
+  topic: text("topic"), // e.g. "React Hooks", "State Management"
+  insight: text("insight").notNull(), // e.g. "User often forgets dependency arrays"
+  traceSummary: jsonb("trace_summary"), // Compact metrics: attempts, duration, errors, etc.
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -63,8 +65,11 @@ export const embeddings = pgTable(
     embedding: vector("embedding", { dimensions: 768 }),
 
     // Metadata for filtering
-    type: text("type").notNull(), // 'challenge_context' | 'react_docs' | 'common_bug'
-    referenceId: text("reference_id"), // Link to challenge ID
+    type: text("type").notNull(), // 'challenge_context' | 'react_docs' | 'common_bug' | 'user_insight'
+    referenceId: text("reference_id"), // Link to challenge ID or userMemories.id
+
+    // User-specific insights (nullable for non-user embeddings)
+    userId: uuid("user_id").references(() => users.id),
 
     createdAt: timestamp("created_at").defaultNow(),
   },

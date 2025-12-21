@@ -16,6 +16,7 @@ interface BottomTabsPanelProps {
   testOutput: string;
   reviewData: ReviewData | null;
   attemptCount: number;
+  challengeId: string; // For memory loop recall
 }
 
 export const BottomTabsPanel = memo(function BottomTabsPanel({
@@ -26,6 +27,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
   testOutput,
   reviewData,
   attemptCount,
+  challengeId,
 }: BottomTabsPanelProps) {
   return (
     <Tabs
@@ -66,6 +68,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
           testOutput={testOutput}
           reviewData={reviewData}
           attemptCount={attemptCount}
+          challengeId={challengeId}
         />
       </TabsContent>
     </Tabs>

@@ -61,11 +61,11 @@ export function DailyBattleCarousel() {
         opts={{
           align: "center",
           loop: false,
-          startIndex: todayIndex !== -1 ? todayIndex : 0,
+          startIndex: todayIndex !== -1 ? todayIndex - 1 : 0,
         }}
         className="w-full"
       >
-        <CarouselContent className="-ml-4 md:-ml-8 cursor-grab active:cursor-grabbing">
+        <CarouselContent className="-ml-4 md:-ml-8 cursor-grab active:cursor-grabbing p-2">
           {items.map((item, index) => (
             <CarouselItem
               key={item.date}
@@ -93,8 +93,8 @@ export function DailyBattleCarousel() {
 
         {/* Navigation Buttons */}
         <div className="hidden md:block">
-          <CarouselPrevious className="left-4 bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white" />
-          <CarouselNext className="right-4 bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white" />
+          <CarouselPrevious className="left-6 bg-zinc-900 border-0 text-zinc-400 hover:bg-zinc-800 hover:text-white" />
+          <CarouselNext className="right-6 bg-zinc-900 border-0 text-zinc-400 hover:bg-zinc-800 hover:text-white" />
         </div>
       </Carousel>
     </div>
@@ -143,11 +143,11 @@ function DailyCard({ item }: { item: DailyBattleCarouselItem }) {
       className={cn(
         "relative w-full aspect-[4/3] rounded-xl transition-all duration-300",
         isToday
-          ? "scale-105 ring-2 ring-yellow-400 shadow-[0_0_30px_-10px_rgba(250,204,21,0.3)]"
+          ? "scale-105 ring-2 ring-yellow-500 shadow-[0_0_30px_-10px_rgba(250,204,21,0.3)]"
           : "opacity-80 hover:opacity-100 scale-95 hover:scale-100"
       )}
     >
-      <Card className="h-full border-0 overflow-hidden bg-zinc-900">
+      <Card className="h-full border-0 bg-zinc-900">
         <CardContent
           className={cn(
             "h-full p-0 flex flex-col justify-between relative",
@@ -224,7 +224,7 @@ function DailyCard({ item }: { item: DailyBattleCarouselItem }) {
                 >
                   <Button
                     size="icon"
-                    className="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg"
+                    className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg"
                   >
                     <Play className="w-4 h-4 fill-current" />
                   </Button>

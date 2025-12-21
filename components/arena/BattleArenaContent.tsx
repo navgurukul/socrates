@@ -150,6 +150,7 @@ export function BattleArenaContent() {
                 testOutput={testOutput}
                 reviewData={reviewData}
                 attemptCount={attemptCount}
+                challengeId={challenge.id}
               />
             </ResizablePanel>
           </ResizablePanelGroup>

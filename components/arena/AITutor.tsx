@@ -22,6 +22,7 @@ interface AiTutorProps {
   testOutput: string;
   reviewData: ReviewData | null;
   attemptCount: number;
+  challengeId: string; // For memory loop recall
 }
 
 export function AiTutor({
@@ -29,6 +30,7 @@ export function AiTutor({
   testOutput,
   reviewData,
   attemptCount,
+  challengeId,
 }: AiTutorProps) {
   const [input, setInput] = useState("");
   const [contextRefreshKey, setContextRefreshKey] = useState(0);
@@ -46,6 +48,7 @@ export function AiTutor({
           files,
           error: testOutput,
           review: reviewData,
+          challengeId, // 🧠 Memory Loop: Enable recall of user insights
         },
       },
     });

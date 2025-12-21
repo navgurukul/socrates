@@ -279,6 +279,34 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
       submitSuccess(challengeId, passedCode, attemptCount).then((res) => {
         if (res.error) console.error("Cloud save failed:", res.error);
       });
+
+      // 🧠 Memory Loop: Generate learning insight from debug trace (fire-and-forget)
+      if (trace) {
+        fetch("/api/insight", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            challengeId,
+            trace,
+            attemptCount,
+            code: passedCode,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.warning) {
+              console.warn(
+                "[Memory Loop] Insight creation warning:",
+                data.warning
+              );
+            } else {
+              console.log("[Memory Loop] Insight created:", data.insightId);
+            }
+          })
+          .catch((err) =>
+            console.error("[Memory Loop] Insight creation failed:", err)
+          );
+      }
     }
   }, [
     status,
@@ -289,6 +317,7 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
     setReviewData,
     setActiveBottomTab,
     completeTrace,
+    trace,
   ]);
 
   // Track test failures in debug trace

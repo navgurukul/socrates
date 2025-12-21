@@ -1,5 +1,7 @@
 import { streamText, convertToModelMessages } from "ai";
 import { models } from "@/lib/ai/models";
+import { createClient } from "@/lib/supabase/server";
+import { retrieveUserInsights } from "@/lib/ai/retrieval";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -14,6 +16,38 @@ export async function POST(req: Request) {
     const files = context?.files || {};
     const error = context?.error || "No error yet";
     const review = context?.review || null;
+    const challengeId = context?.challengeId || null;
+
+    // 🧠 Memory Loop: Retrieve user insights for personalized guidance
+    let userInsightsContext = "";
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user && challengeId) {
+        const insights = await retrieveUserInsights({
+          userId: user.id,
+          challengeId,
+          limit: 3,
+        });
+
+        if (insights.length > 0) {
+          userInsightsContext = `
+      
+PAST LEARNING INSIGHTS ABOUT THIS USER:
+${insights.map((ins, i) => `${i + 1}. ${ins.insight}`).join("\n")}
+
+Use these insights to personalize your guidance based on their past patterns.
+Do not quote these verbatim - weave them naturally into your hints.
+      `;
+        }
+      }
+    } catch (insightError) {
+      console.error("[Chat API] Failed to retrieve insights:", insightError);
+      // Continue without insights - don't fail the chat request
+    }
 
     // Build review context string if available
     const reviewContext = review
@@ -29,6 +63,7 @@ export async function POST(req: Request) {
     // We inject this invisibly into the system prompt
     const systemPrompt = `
       You are a Socratic Tutor for a coding challenge platform called "Bug Battle Arena".
+      ${userInsightsContext}
       
       CONTEXT:
       - User's Current Code: 
