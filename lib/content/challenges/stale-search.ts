@@ -23,7 +23,7 @@ This happens inconsistently and is hard to reproduce unless you type fast.
 4. Fix the bug in \`src/Search.tsx\`.
 5. Run Tests to verify.
 
-⚠️ Hint: This is **not** a rendering issue. Think about **time**.
+Hint: This is **not** a rendering issue. Think about **time**.
   `,
   difficulty: "Medium",
   order: 1,
@@ -86,6 +86,24 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+})`,
+      },
+    },
+
+    "vitest.config.js": {
+      readOnly: true,
+      hidden: true,
+      file: {
+        contents: `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    watch: false,
+  },
 })`,
       },
     },
