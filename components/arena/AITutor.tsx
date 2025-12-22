@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Lightbulb,
   Sparkles,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ interface AiTutorProps {
   reviewData: ReviewData | null;
   attemptCount: number;
   challengeId: string; // For memory loop recall
+  source?: string; // "daily" | "daily-archive" | undefined
 }
 
 export function AiTutor({
@@ -31,6 +33,7 @@ export function AiTutor({
   reviewData,
   attemptCount,
   challengeId,
+  source,
 }: AiTutorProps) {
   const [input, setInput] = useState("");
   const [contextRefreshKey, setContextRefreshKey] = useState(0);
@@ -130,6 +133,25 @@ export function AiTutor({
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden relative">
         <ScrollArea className="h-full px-4 py-4" viewportRef={scrollRef}>
+          {/* 🔥 DAILY BATTLE SUCCESS BANNER */}
+          {reviewData && source === "daily" && (
+            <div className="mb-4 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 rounded-xl p-4 animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/20 rounded-lg">
+                  <Flame className="w-5 h-5 text-orange-400 fill-orange-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white text-sm">
+                    Daily Battle Complete!
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Come back tomorrow to maintain your streak
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ✅ REVIEW CARD (Appears only when reviewData exists) */}
           {reviewData && (
             <div className="mb-8 bg-zinc-900/50 border border-emerald-500/20 rounded-xl p-5 animate-in fade-in slide-in-from-bottom-4 shadow-lg shadow-emerald-900/5">

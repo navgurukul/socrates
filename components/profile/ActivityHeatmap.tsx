@@ -89,9 +89,9 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
       </CardHeader>
       <CardContent>
         <TooltipProvider>
-          <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600">
+          <div className="w-full overflow-x-auto pb-2">
             <div
-              className="flex gap-0.5 min-w-max justify-between p-1"
+              className="flex items-start gap-0.5 min-w-max justify-between p-1"
               role="grid"
               aria-label="Activity heatmap showing daily battle completions"
             >

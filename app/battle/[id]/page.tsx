@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BattleProvider } from "@/contexts/BattleContext";
 import { BattleArenaContent } from "@/components/arena/BattleArenaContent";
@@ -49,10 +49,12 @@ function WebContainerError({ error }: { error: string }) {
  */
 export default function BattleArena() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const challengeId = typeof params.id === "string" ? params.id : "";
+  const source = searchParams.get("source") || undefined;
 
   return (
-    <BattleProvider challengeId={challengeId}>
+    <BattleProvider challengeId={challengeId} source={source}>
       <BattleArenaWrapper />
     </BattleProvider>
   );

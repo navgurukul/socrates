@@ -17,6 +17,7 @@ interface BottomTabsPanelProps {
   reviewData: ReviewData | null;
   attemptCount: number;
   challengeId: string; // For memory loop recall
+  source?: string; // "daily" | "daily-archive" | undefined
 }
 
 export const BottomTabsPanel = memo(function BottomTabsPanel({
@@ -28,6 +29,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
   reviewData,
   attemptCount,
   challengeId,
+  source,
 }: BottomTabsPanelProps) {
   return (
     <Tabs
@@ -69,6 +71,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
           reviewData={reviewData}
           attemptCount={attemptCount}
           challengeId={challengeId}
+          source={source}
         />
       </TabsContent>
     </Tabs>

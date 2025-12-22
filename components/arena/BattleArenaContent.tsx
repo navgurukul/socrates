@@ -44,6 +44,7 @@ export function BattleArenaContent() {
     setMonacoInstance,
     activeBottomTab,
     setActiveBottomTab,
+    source,
   } = useBattle();
 
   // Build the tree structure efficiently
@@ -151,6 +152,7 @@ export function BattleArenaContent() {
                 reviewData={reviewData}
                 attemptCount={attemptCount}
                 challengeId={challenge.id}
+                source={source}
               />
             </ResizablePanel>
           </ResizablePanelGroup>

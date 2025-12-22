@@ -26,6 +26,7 @@ import { useEditorStore } from "@/lib/store/editorStore";
 import { useUserStore } from "@/lib/store/userStore";
 import { useDebugTraceStore } from "@/lib/store/debugTraceStore";
 import { submitSuccess } from "@/lib/actions/progress";
+import { completeDailyBattle } from "@/lib/actions/daily-battles";
 import { TABS } from "@/lib/config/constants";
 
 /**
@@ -91,6 +92,9 @@ export interface BattleContextValue {
   // Monaco
   monacoInstance: Monaco | null;
   setMonacoInstance: (monaco: Monaco) => void;
+
+  // Source
+  source?: string;
 }
 
 /**
@@ -101,13 +105,18 @@ export const BattleContext = createContext<BattleContextValue | null>(null);
 interface BattleProviderProps {
   children: React.ReactNode;
   challengeId: string;
+  source?: string; // "daily" | "daily-archive" | undefined
 }
 
 /**
  * Battle Provider - Centralizes all battle-related state management
  * Eliminates prop drilling by providing context to all child components
  */
-export function BattleProvider({ children, challengeId }: BattleProviderProps) {
+export function BattleProvider({
+  children,
+  challengeId,
+  source,
+}: BattleProviderProps) {
   // Local state
   const [term, setTerm] = useState<XTerminal | null>(null);
   const [isEnvReady, setIsEnvReady] = useState(false);
@@ -280,6 +289,24 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
         if (res.error) console.error("Cloud save failed:", res.error);
       });
 
+      // 🔥 Daily Battle: Mark completion and update streak
+      if (source === "daily") {
+        const timezoneOffset = new Date().getTimezoneOffset();
+        completeDailyBattle(challengeId, timezoneOffset)
+          .then((result) => {
+            if (result.success && result.streak) {
+              console.log(
+                `[Daily Battle] Streak updated: ${result.streak.currentStreak} days (max: ${result.streak.maxStreak})`
+              );
+            } else if (result.error) {
+              console.error("[Daily Battle] Completion failed:", result.error);
+            }
+          })
+          .catch((err) =>
+            console.error("[Daily Battle] Completion error:", err)
+          );
+      }
+
       // 🧠 Memory Loop: Generate learning insight from debug trace (fire-and-forget)
       if (trace) {
         fetch("/api/insight", {
@@ -311,6 +338,7 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   }, [
     status,
     challengeId,
+    source,
     markSolved,
     fileContents,
     attemptCount,
@@ -461,6 +489,9 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
   const runTests = useCallback(async () => {
     incrementAttempts();
 
+    // Clear previous review data on new test run
+    setReviewData(null);
+
     // Reset idle detection timer on activity
     resetActivityTimer();
 
@@ -476,6 +507,7 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
     incrementAttempts,
     addEvent,
     resetActivityTimer,
+    setReviewData,
   ]);
 
   const isRunning = status === "running";
@@ -547,6 +579,9 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
       // Monaco
       monacoInstance,
       setMonacoInstance,
+
+      // Source
+      source,
     }),
     [
       instance,
@@ -577,6 +612,7 @@ export function BattleProvider({ children, challengeId }: BattleProviderProps) {
       setMonacoInstance,
       addEvent,
       resetActivityTimer,
+      source,
     ]
   );
 
