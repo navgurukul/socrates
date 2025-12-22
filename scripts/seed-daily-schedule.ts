@@ -5,9 +5,26 @@
  * Run with: npx tsx scripts/seed-daily-schedule.ts seed [days]
  */
 
-import { db } from "@/lib/db";
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// CRITICAL: Load environment variables BEFORE importing db module
+config({ path: resolve(process.cwd(), ".env.local") });
+
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { dailySchedule } from "@/lib/db/schema";
-import { getAllBattlesMeta } from "@/lib/content/registry";
+import { getAllDailyChallengesMeta } from "@/lib/content/dailyRegistry";
+
+// Create database client with environment variables now loaded
+const connectionString = process.env.DATABASE_URL!;
+const sql = postgres(connectionString, {
+  prepare: false,
+  ssl: 'require',
+  idle_timeout: 5,
+  connect_timeout: 10,
+});
+const db = drizzle(sql, { schema: { dailySchedule } });
 
 /**
  * Generate a daily schedule for the next N days
@@ -16,25 +33,17 @@ import { getAllBattlesMeta } from "@/lib/content/registry";
 async function seedDailySchedule(days: number = 30) {
   console.log(`🌱 Seeding daily schedule for ${days} days...`);
 
-  const battles = getAllBattlesMeta();
+  const challenges = getAllDailyChallengesMeta();
 
-  if (battles.length === 0) {
-    console.error("❌ No battles found in registry");
+  if (challenges.length === 0) {
+    console.error("❌ No daily challenges found in daily registry");
     return;
   }
 
-  console.log(`📊 Found ${battles.length} battles`);
+  console.log(`📊 Found ${challenges.length} daily challenges`);
 
-  // Sort by track and arc for a logical progression
-  const sortedBattles = battles.sort((a, b) => {
-    if (a.trackId !== b.trackId) {
-      return a.trackId.localeCompare(b.trackId);
-    }
-    if (a.arcId !== b.arcId) {
-      return a.arcId.localeCompare(b.arcId);
-    }
-    return a.order - b.order;
-  });
+  // Sort by order for a logical progression
+  const sortedChallenges = challenges.sort((a, b) => a.order - b.order);
 
   // Generate schedule starting from today
   const today = new Date();
@@ -45,8 +54,8 @@ async function seedDailySchedule(days: number = 30) {
     date.setDate(today.getDate() + i);
     const dateStr = date.toISOString().split("T")[0];
 
-    // Round-robin through battles
-    const battle = sortedBattles[i % sortedBattles.length];
+    // Round-robin through daily challenges
+    const challenge = sortedChallenges[i % sortedChallenges.length];
 
     // Generate a theme based on day of week (optional)
     const dayOfWeek = date.getDay();
@@ -63,7 +72,7 @@ async function seedDailySchedule(days: number = 30) {
 
     scheduleEntries.push({
       date: dateStr,
-      challengeId: battle.id,
+      challengeId: challenge.id,
       theme,
     });
   }

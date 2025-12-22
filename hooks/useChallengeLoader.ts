@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getChallenge } from "@/lib/content/registry";
+import { getDailyChallenge } from "@/lib/content/dailyRegistry";
 import { Challenge } from "@/lib/content/types";
 import { createLogger } from "@/lib/logger";
 
@@ -33,19 +34,24 @@ export function useChallengeLoader(challengeId: string) {
     setNotFound(false);
 
     getChallenge(trimmedId)
-      .then((data) => {
-        if (!data) {
+      .then(async (data) => {
+        const challengeData = data ?? (await getDailyChallenge(trimmedId));
+
+        if (!challengeData) {
           setNotFound(true);
           setChallenge(null);
           router.push("/");
         } else {
-          setChallenge(data);
+          setChallenge(challengeData);
           setNotFound(false);
         }
         setError(null);
       })
       .catch((err) => {
-        logger.error("Failed to load challenge", { challengeId: trimmedId, error: err });
+        logger.error("Failed to load challenge", {
+          challengeId: trimmedId,
+          error: err,
+        });
         setError(err);
         setChallenge(null);
       })

@@ -10,7 +10,6 @@ import type {
   DailyBattleData,
   UserStreakData,
 } from "@/lib/actions/daily-battles";
-import { getTrack } from "@/lib/content/tracks";
 
 export function DailyBattleSection() {
   const [dailyBattle, setDailyBattle] = useState<DailyBattleData | null>(null);
@@ -46,16 +45,15 @@ export function DailyBattleSection() {
   }
 
   const { battle, isCompleted } = dailyBattle;
-  const track = getTrack(battle.trackId);
 
   // Map difficulty from battle to card format
   const difficultyMap: Record<
     string,
     "beginner" | "intermediate" | "advanced"
   > = {
-    easy: "beginner",
-    medium: "intermediate",
-    hard: "advanced",
+    Easy: "beginner",
+    Medium: "intermediate",
+    Hard: "advanced",
   };
 
   return (
@@ -66,7 +64,6 @@ export function DailyBattleSection() {
         isCompleted={isCompleted}
         streak={streak?.currentStreak || 0}
         battleId={battle.id}
-        trackTitle={track?.title}
       />
     </div>
   );

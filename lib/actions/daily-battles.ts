@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 import { dailySchedule, dailyProgress, userStreaks } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, desc } from "drizzle-orm";
-import { getBattle } from "@/lib/content/registry";
-import type { Battle } from "@/lib/content/types";
+import { getDailyChallenge } from "@/lib/content/dailyRegistry";
+import type { Challenge } from "@/lib/content/types";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -19,7 +19,7 @@ export interface DailyBattleSchedule {
 
 export interface DailyBattleData {
   schedule: DailyBattleSchedule;
-  battle: Battle;
+  battle: Challenge;
   isCompleted: boolean;
   completedAt: Date | null;
 }
@@ -41,7 +41,8 @@ export interface DailyBattleCarouselItem {
   date: string; // YYYY-MM-DD
   dateLabel: string; // e.g., "DEC 16", "TODAY", "TOMORROW"
   status: "past" | "today" | "future";
-  battle: Battle | null;
+  challengeId: string | null;
+  battle: Challenge | null;
   userProgress: {
     isCompleted: boolean;
     score: string; // e.g., "100%", "Not played", "Failed"
@@ -113,9 +114,9 @@ export async function getTodayDailyBattle(
     }
 
     // 2. Load the actual battle data
-    const battle = await getBattle(schedule.challengeId);
+    const battle = await getDailyChallenge(schedule.challengeId);
     if (!battle) {
-      console.error(`Battle not found: ${schedule.challengeId}`);
+      console.error(`Daily challenge not found: ${schedule.challengeId}`);
       return null;
     }
 
@@ -443,9 +444,11 @@ export async function getDailyBattlesForCarousel(
         }
 
         // Load battle if scheduled
-        let battle: Battle | null = null;
+        let battle: Challenge | null = null;
+        let challengeId: string | null = null;
         if (schedule) {
-          battle = await getBattle(schedule.challengeId);
+          challengeId = schedule.challengeId;
+          battle = await getDailyChallenge(schedule.challengeId);
         }
 
         // Determine user progress
@@ -482,6 +485,7 @@ export async function getDailyBattlesForCarousel(
           date,
           dateLabel,
           status,
+          challengeId,
           battle,
           userProgress,
           themeColor,

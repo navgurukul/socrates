@@ -217,9 +217,9 @@ function DailyCard({ item }: { item: DailyBattleCarouselItem }) {
 
             {/* Action Button */}
             <div className="flex justify-between items-end">
-              {isToday && item.battle ? (
+              {isToday && item.challengeId ? (
                 <Link
-                  href={`/battle/${item.battle.id}?source=daily`}
+                  href={`/battle/${item.challengeId}?source=daily`}
                   className="w-full flex justify-end"
                 >
                   <Button
@@ -229,9 +229,9 @@ function DailyCard({ item }: { item: DailyBattleCarouselItem }) {
                     <Play className="w-4 h-4 fill-current" />
                   </Button>
                 </Link>
-              ) : item.status === "past" && item.battle ? (
+              ) : item.status === "past" && item.challengeId ? (
                 <Link
-                  href={`/battle/${item.battle.id}?source=daily-archive`}
+                  href={`/battle/${item.challengeId}?source=daily-archive`}
                   className="w-full flex justify-end"
                 >
                   <Button
