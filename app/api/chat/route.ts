@@ -25,11 +25,6 @@ function extractLastUserMessageText(messages: UIMessage[]): string | undefined {
     if (textContent) return textContent;
   }
 
-  // Fallback: legacy content field
-  if (typeof lastMessage.content === "string") {
-    return lastMessage.content.trim();
-  }
-
   return undefined;
 }
 

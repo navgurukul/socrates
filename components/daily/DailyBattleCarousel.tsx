@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getDailyBattlesForCarousel } from "@/lib/actions/daily-battles";
 import type { DailyBattleCarouselItem } from "@/lib/actions/daily-battles";
+import { DailyBattleCarouselSkeleton } from "./DailyBattleCarouselSkeleton";
 
 export function DailyBattleCarousel() {
   const [items, setItems] = useState<DailyBattleCarouselItem[]>([]);
@@ -42,13 +43,7 @@ export function DailyBattleCarousel() {
   const todayIndex = items.findIndex((d) => d.status === "today");
 
   if (isLoading) {
-    return (
-      <div className="w-full max-w-5xl mx-auto py-8">
-        <div className="text-center text-zinc-500">
-          Loading daily battles...
-        </div>
-      </div>
-    );
+    return <DailyBattleCarouselSkeleton />;
   }
 
   if (items.length === 0) {

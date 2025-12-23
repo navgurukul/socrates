@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { DailyChallengeCard } from "./DailyChallengeCard";
+import { DailyBattleSectionSkeleton } from "./DailyBattleSectionSkeleton";
 import {
   getTodayDailyBattle,
   getUserStreak,
@@ -39,8 +40,13 @@ export function DailyBattleSection() {
     loadDailyBattle();
   }, []);
 
-  // Don't render if loading or no daily battle
-  if (isLoading || !dailyBattle) {
+  // Show skeleton while loading
+  if (isLoading) {
+    return <DailyBattleSectionSkeleton />;
+  }
+
+  // Don't render if no daily battle
+  if (!dailyBattle) {
     return null;
   }
 

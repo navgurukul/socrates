@@ -101,7 +101,6 @@ Examples:
   const result = await streamText({
     model: models.tutor,
     prompt,
-    maxTokens: 150,
   });
 
   // Collect streamed text
@@ -145,11 +144,11 @@ Examples:
 async function generateEmbedding(text: string): Promise<number[]> {
   const embeddingModel = google.textEmbeddingModel("text-embedding-004");
 
-  const { embedding } = await embeddingModel.doEmbed({
+  const { embeddings: embeddingResults } = await embeddingModel.doEmbed({
     values: [text],
   });
 
-  return embedding[0];
+  return embeddingResults[0];
 }
 
 /**

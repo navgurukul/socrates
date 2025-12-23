@@ -23,11 +23,11 @@ export interface UserInsight {
 async function generateQueryEmbedding(query: string): Promise<number[]> {
   const embeddingModel = google.textEmbeddingModel("text-embedding-004");
 
-  const { embedding } = await embeddingModel.doEmbed({
+  const { embeddings: embeddingResults } = await embeddingModel.doEmbed({
     values: [query],
   });
 
-  return embedding[0];
+  return embeddingResults[0];
 }
 
 /**
