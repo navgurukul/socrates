@@ -6,9 +6,9 @@ const connectionString = process.env.DATABASE_URL!;
 
 // Disable prefetch for serverless environments, enable SSL for Supabase
 // Set appropriate timeouts for reliable connections
-const client = postgres(connectionString, { 
+const client = postgres(connectionString, {
   prepare: false,
-  ssl: 'require',
+  ssl: "require",
   idle_timeout: 5,
   connect_timeout: 10,
 });

@@ -20,7 +20,7 @@ import { getAllDailyChallengesMeta } from "@/lib/content/dailyRegistry";
 const connectionString = process.env.DATABASE_URL!;
 const sql = postgres(connectionString, {
   prepare: false,
-  ssl: 'require',
+  ssl: "require",
   idle_timeout: 5,
   connect_timeout: 10,
 });
