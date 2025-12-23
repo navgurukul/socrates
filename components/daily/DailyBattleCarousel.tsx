@@ -60,7 +60,7 @@ export function DailyBattleCarousel() {
         }}
         className="w-full"
       >
-        <CarouselContent className="-ml-4 md:-ml-8 cursor-grab active:cursor-grabbing p-2">
+        <CarouselContent className="md:-ml-8 cursor-grab active:cursor-grabbing p-3">
           {items.map((item, index) => (
             <CarouselItem
               key={item.date}

@@ -48,17 +48,15 @@ async function TrackDetailContent({ trackId }: { trackId: string }) {
 
 export default function TrackDetailPage({ params }: TrackDetailPageProps) {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <PageContainer withScrollArea maxWidth="6xl">
-        {/* Auth Button */}
-        <PageAuthButton />
+    <PageContainer withScrollArea maxWidth="6xl">
+      {/* Auth Button */}
+      <PageAuthButton />
 
-        {/* Content */}
-        <Suspense fallback={<LoadingScreen fullScreen={false} />}>
-          <TrackDetailContent trackId={params.trackId} />
-        </Suspense>
-      </PageContainer>
-    </main>
+      {/* Content */}
+      <Suspense fallback={<LoadingScreen fullScreen={false} />}>
+        <TrackDetailContent trackId={params.trackId} />
+      </Suspense>
+    </PageContainer>
   );
 }
 

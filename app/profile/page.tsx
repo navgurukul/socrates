@@ -4,7 +4,7 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { NeuralLink } from "@/components/profile/NeuralLink";
 import { ActivityHeatmap } from "@/components/profile/ActivityHeatmap";
 import { BattleHistory } from "@/components/profile/BattleHistory";
-import { BackButton } from "@/components/common";
+import { BackButton, PageContainer, PageNavSection } from "@/components/common";
 
 export default async function ProfilePage() {
   const profileData = await getUserProfile();
@@ -15,30 +15,31 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 p-4 md:p-8 text-white">
-      <div className="mx-auto max-w-5xl space-y-8">
-        {/* Back Button */}
-        <BackButton href="/" label="Back to Home" />
+    <PageContainer withScrollArea className="space-y-8">
+      {/* Navigation Section */}
+      <PageNavSection backHref="/" backLabel="Back to Home" showAuth />
 
-        {/* Header Section */}
-        <ProfileHeader
-          user={profileData.user}
-          streaks={profileData.streaks}
-          stats={profileData.stats}
+      {/* Header Section */}
+      <ProfileHeader
+        user={profileData.user}
+        streaks={profileData.streaks}
+        stats={profileData.stats}
+      />
+
+      {/* Two-column grid on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Neural Analysis */}
+        <NeuralLink insights={profileData.insights} />
+
+        {/* Battle History */}
+        <BattleHistory userId={profileData.user.id} />
+
+        {/* Activity Activity */}
+        <ActivityHeatmap
+          activity={profileData.activity}
+          className="col-span-full"
         />
-        {/* Activity Heatmap */}
-
-        {/* Two-column grid on desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Neural Analysis */}
-          <NeuralLink insights={profileData.insights} />
-
-          {/* Battle History - Full Width */}
-          <BattleHistory userId={profileData.user.id} />
-        </div>
-
-        <ActivityHeatmap activity={profileData.activity} />
       </div>
-    </main>
+    </PageContainer>
   );
 }

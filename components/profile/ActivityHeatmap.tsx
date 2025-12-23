@@ -14,6 +14,7 @@ interface ActivityHeatmapProps {
     date: string; // YYYY-MM-DD
     battleCount: number;
   }>;
+  className?: string;
 }
 
 // Generate last 365 days with activity data
@@ -52,7 +53,7 @@ function generateHeatmapData(
   return data;
 }
 
-export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ activity, className }: ActivityHeatmapProps) {
   const heatmapData = generateHeatmapData(activity);
 
   // Group by weeks for display
@@ -80,7 +81,7 @@ export function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
   });
 
   return (
-    <Card className="border-zinc-800 bg-zinc-950/50">
+    <Card className={cn("border-zinc-800 bg-zinc-950/50", className)}>
       <CardHeader>
         <CardTitle className="text-lg text-zinc-100">Activity</CardTitle>
         <p className="text-xs text-zinc-500">

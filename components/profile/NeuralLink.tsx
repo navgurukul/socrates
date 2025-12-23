@@ -20,7 +20,7 @@ interface NeuralLinkProps {
 
 export function NeuralLink({ insights }: NeuralLinkProps) {
   return (
-    <Card className="border-zinc-800 bg-zinc-950/50">
+    <Card className="border-zinc-800 bg-zinc-950/50 ">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2 text-zinc-100">
           <BrainCircuit className="w-5 h-5 text-purple-500" />
@@ -36,7 +36,7 @@ export function NeuralLink({ insights }: NeuralLinkProps) {
             No analysis data yet. Complete more battles to unlock insights.
           </p>
         ) : (
-          <ScrollArea className="max-h-[400px] pr-4">
+          <ScrollArea className="h-[400px] pr-4">
             <div className="grid gap-3" role="list">
               {insights.slice(0, 5).map((insight) => {
                 // Use stored category, default to 'pattern' if null

@@ -69,7 +69,7 @@ export async function getDailyChallenge(id: string): Promise<Challenge | null> {
   if (!entry) return null;
 
   const challenge = await entry.loader();
-  const resolved = 'default' in challenge ? challenge.default : challenge;
+  const resolved = "default" in challenge ? challenge.default : challenge;
   dailyBattleCache.set(id, resolved);
   return resolved;
 }
@@ -84,7 +84,7 @@ export async function getAllDailyChallenges(): Promise<Challenge[]> {
         return dailyBattleCache.get(entry.id)!;
       }
       const challenge = await entry.loader();
-      const resolved = 'default' in challenge ? challenge.default : challenge;
+      const resolved = "default" in challenge ? challenge.default : challenge;
       dailyBattleCache.set(entry.id, resolved);
       return resolved;
     })

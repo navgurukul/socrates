@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuthContext } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { LogOut, LogIn, User } from "lucide-react";
+import { LogOut, LogIn, User, Trophy } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 
 export function AuthButton() {
@@ -23,12 +23,21 @@ export function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-2">
+        <Link href="/leaderboard">
+          <Button variant="link" className="text-zinc-400 hover:text-zinc-50">
+            <Trophy className="w-4 h-4" />
+          </Button>
+        </Link>
         <Link href="/profile">
-          <Button variant="link" className="text-zinc-300">
+          <Button variant="link" className="text-zinc-400 hover:text-zinc-50">
             <User className="w-4 h-4" />
           </Button>
         </Link>
-        <Button onClick={signOut} variant="link" className="text-zinc-300">
+        <Button
+          onClick={signOut}
+          variant="link"
+          className="text-zinc-400 hover:text-red-400"
+        >
           <LogOut className="w-4 h-4" />
         </Button>
       </div>

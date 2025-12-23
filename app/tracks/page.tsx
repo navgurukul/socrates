@@ -24,24 +24,22 @@ async function TracksContent() {
 
 export default function TracksPage() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <PageContainer withScrollArea maxWidth="6xl">
-        {/* Navigation Section */}
-        <PageNavSection backHref="/" backLabel="Back to Home" showAuth />
+    <PageContainer withScrollArea maxWidth="6xl">
+      {/* Navigation Section */}
+      <PageNavSection backHref="/" backLabel="Back to Home" showAuth />
 
-        {/* Header */}
-        <PageHeader
-          title="Learning"
-          highlightText="Tracks"
-          description="Choose your learning path. Master debugging across different domains and build real-world problem-solving skills."
-          align="left"
-        />
+      {/* Header */}
+      <PageHeader
+        title="Learning"
+        highlightText="Tracks"
+        description="Choose your learning path. Master debugging across different domains and build real-world problem-solving skills."
+        align="left"
+      />
 
-        {/* Tracks Grid */}
-        <Suspense fallback={<LoadingScreen fullScreen={false} />}>
-          <TracksContent />
-        </Suspense>
-      </PageContainer>
-    </main>
+      {/* Tracks Grid */}
+      <Suspense fallback={<LoadingScreen fullScreen={false} />}>
+        <TracksContent />
+      </Suspense>
+    </PageContainer>
   );
 }
