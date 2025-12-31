@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { TrackCard } from "@/components/tracks/TrackCard";
-import { LoadingScreen } from "@/components/ui/loading-screen";
+import { TrackCardSkeletonGrid } from "@/components/tracks/TrackCardSkeleton";
 import { getTracksWithProgress } from "@/lib/actions/track-progress";
 import { PageContainer, PageNavSection, PageHeader } from "@/components/common";
 
@@ -37,7 +37,7 @@ export default function TracksPage() {
       />
 
       {/* Tracks Grid */}
-      <Suspense fallback={<LoadingScreen fullScreen={false} />}>
+      <Suspense fallback={<TrackCardSkeletonGrid />}>
         <TracksContent />
       </Suspense>
     </PageContainer>

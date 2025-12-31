@@ -28,10 +28,8 @@ function generateHeatmapData(
     level: 0 | 1 | 2 | 3 | 4;
   }> = [];
 
-  // Create a map for quick lookup
   const activityMap = new Map(activity.map((a) => [a.date, a.battleCount]));
 
-  // Generate 365 days of data
   for (let i = 364; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
@@ -39,7 +37,6 @@ function generateHeatmapData(
 
     const battleCount = activityMap.get(dateStr) || 0;
 
-    // Map battle count to intensity level
     let level: 0 | 1 | 2 | 3 | 4;
     if (battleCount === 0) level = 0;
     else if (battleCount <= 2) level = 1;
@@ -56,15 +53,13 @@ function generateHeatmapData(
 export function ActivityHeatmap({ activity, className }: ActivityHeatmapProps) {
   const heatmapData = generateHeatmapData(activity);
 
-  // Group by weeks for display
+  // Group by weeks
   const weeks: Array<Array<(typeof heatmapData)[0]>> = [];
   let currentWeek: Array<(typeof heatmapData)[0]> = [];
 
-  // Start from the first day (which might not be a Sunday)
   const firstDate = new Date(heatmapData[0].date);
   const firstDayOfWeek = firstDate.getDay();
 
-  // Add empty cells for days before the first date
   for (let i = 0; i < firstDayOfWeek; i++) {
     currentWeek.push({ date: "", battleCount: 0, level: 0 });
   }
@@ -72,7 +67,6 @@ export function ActivityHeatmap({ activity, className }: ActivityHeatmapProps) {
   heatmapData.forEach((day, index) => {
     currentWeek.push(day);
 
-    // If it's Saturday or the last day, start a new week
     const date = new Date(day.date);
     if (date.getDay() === 6 || index === heatmapData.length - 1) {
       weeks.push(currentWeek);
@@ -82,24 +76,25 @@ export function ActivityHeatmap({ activity, className }: ActivityHeatmapProps) {
 
   return (
     <Card className={cn("border-zinc-800 bg-zinc-950/50", className)}>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="text-lg text-zinc-100">Activity</CardTitle>
         <p className="text-xs text-zinc-500">
           Last 365 days of battle completions
         </p>
       </CardHeader>
+
       <CardContent>
-        <TooltipProvider>
-          <div className="w-full overflow-x-auto pb-2">
+        <TooltipProvider delayDuration={100}>
+          {/* Heatmap */}
+          <div className="w-full overflow-x-auto pb-3">
             <div
-              className="flex items-start gap-0.5 min-w-max justify-between p-1"
+              className="flex gap-1 px-1 min-w-max"
               role="grid"
               aria-label="Activity heatmap showing daily battle completions"
             >
               {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-0.5 ">
+                <div key={weekIndex} className="flex flex-col gap-1">
                   {week.map((day, dayIndex) => {
-                    // Skip empty cells
                     if (!day.date) {
                       return (
                         <div
@@ -121,7 +116,9 @@ export function ActivityHeatmap({ activity, className }: ActivityHeatmapProps) {
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              "w-4 h-4 rounded-xs transition-all cursor-pointer hover:scale-110 hover:ring-1 hover:ring-zinc-500",
+                              "w-4 h-4 rounded-xs cursor-pointer transition-colors",
+                              "focus:outline-none focus:ring-1 focus:ring-zinc-400",
+                              "hover:ring-1 hover:ring-zinc-500",
                               day.level === 0 && "bg-zinc-900",
                               day.level === 1 && "bg-emerald-950",
                               day.level === 2 && "bg-emerald-800",
@@ -133,6 +130,7 @@ export function ActivityHeatmap({ activity, className }: ActivityHeatmapProps) {
                             tabIndex={0}
                           />
                         </TooltipTrigger>
+
                         {day.battleCount > 0 && (
                           <TooltipContent>
                             <p className="text-xs">

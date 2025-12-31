@@ -6,6 +6,33 @@
 
 ### Latest Features & Improvements
 
+#### User Profile System (✅ Completed)
+
+- **Profile Page**: Comprehensive user dashboard at `/profile` with authentication guard
+- **Profile Components**: `ProfileHeader`, `ActivityHeatmap`, `BattleHistory`, `NeuralLink`
+- **User Statistics**: Display current/max streaks, battles solved, join date
+- **Activity Heatmap**: GitHub-style contribution graph showing last 365 days of activity
+- **Battle History**: Recent 10 completed battles with relative timestamps
+- **Neural Link**: AI-generated insights about user's debugging patterns and strengths
+- **Server Action**: `getUserProfile()` fetches all profile data in parallel for performance
+
+#### Leaderboard System (✅ Completed)
+
+- **Global Rankings Page**: Located at `/leaderboard` with dual-tab interface
+- **Streak Masters**: Leaderboard sorted by current streak count
+- **Top Solvers**: Leaderboard sorted by total battles completed
+- **User Highlighting**: Current user's row highlighted in blue with ring styling
+- **Medal System**: Top 3 ranks display gold/silver/bronze medals
+- **Components**: `LeaderboardRow` for consistent entry styling
+- **Server Actions**: `getStreakLeaderboard()`, `getSolvedLeaderboard()` (limit 50 users)
+
+#### Common UI Components (✅ Completed)
+
+- **Page Scaffolding**: Reusable components for consistent page layouts
+- **Components**: `PageContainer`, `PageHeader`, `PageNavSection`, `BackButton`, `PageAuthButton`
+- **Features**: Consistent spacing, scroll area support, navigation patterns, auth integration
+- **Usage**: Standardized across `/tracks`, `/profile`, `/leaderboard` pages
+
 #### Memory Loop System (✅ Completed)
 
 - **Observation Phase**: On battle completion, debug trace is analyzed to extract learning insights
@@ -44,6 +71,11 @@
 - **Timezone Handling**: Local date storage for consistent daily experience
 - **Optimistic UI**: Streak updates and progress tracking
 - **Script Utilities**: `seed-daily-schedule.ts`, `verify-tracks.ts` for admin tasks
+- **Database Migrations**: Comprehensive migration history tracked in `/drizzle`
+  - `0001_rainy_callisto.sql`: Initial schema (users, challenge_progress)
+  - `0001_daily_battles_only.sql`: Daily battles system (daily_schedule, daily_progress, user_streaks)
+  - `0002_memory_loop.sql`: Memory loop system (user_memories, embeddings with pgvector)
+  - `0003_add_category_to_insights.sql`: Added category field to user_memories (strength/weakness/pattern)
 
 ---
 
@@ -119,6 +151,7 @@ Platform → Tracks → Arcs → Battles
 - **Database:** Drizzle ORM + Supabase (Postgres).
 - **Auth:** Supabase Auth.
 - **AI:** Vercel AI SDK v5 + Google Gemini (`gemini-2.5-flash-lite`).
+- **Navigation:** Integrated auth button with links to `/leaderboard` and `/profile` for authenticated users.
 
 ### Component Architecture
 
@@ -131,19 +164,25 @@ Platform → Tracks → Arcs → Battles
     /api/chat             # AI Tutor chat endpoint
     /api/insight          # AI Insight creation endpoint (Memory Loop)
     /api/review           # Code Review endpoint
+    /auth/callback        # Supabase auth callback handler
     /battle/[id]          # Battle page (dynamic route)
+    /leaderboard          # Global leaderboard page
+    /profile              # User profile page (auth required)
     /tracks               # Learning tracks pages
       /[trackId]          # Track detail pages with arc timeline
   /components
     /arena                # Battle-specific UI (Editor, Terminal, Preview, AITutor, etc.)
     /daily                # Daily battle components (Carousel, Cards)
     /tracks               # Track-specific UI (TrackCard, ArcTimeline, BattleNode)
+    /profile              # Profile page components (ProfileHeader, ActivityHeatmap, etc.)
+    /leaderboard          # Leaderboard components (LeaderboardRow)
+    /common               # Reusable page scaffolding (PageContainer, PageHeader, etc.)
     /ui                   # shadcn/ui primitives
     /auth                 # Auth components
   /contexts               # React contexts (BattleContext)
   /hooks                  # Custom hooks (see below)
   /lib
-    /actions              # Server actions (daily-battles, progress, track-progress)
+    /actions              # Server actions (daily-battles, progress, track-progress, user-profile, leaderboard)
     /ai                   # AI model configuration
     /config               # App constants
     /content              # Curriculum: tracks, arcs, challenges, registry
@@ -210,12 +249,16 @@ Platform → Tracks → Arcs → Battles
   - ✅ **Daily Battle Carousel** - Visual carousel showing past, present, and future daily challenges
   - ✅ **User Streak Tracking** - Current and max streak persistence
   - ✅ **Track Progress Pages** - Visual arc timeline with battle nodes
-  - ✅ **Server Actions** - Optimized data fetching for daily battles and progress
+  - ✅ **User Profile System** - Comprehensive profile dashboard with stats, heatmap, and insights
+  - ✅ **Leaderboard System** - Global rankings for streaks and total battles solved
+  - ✅ **Common Page Components** - Reusable scaffolding for consistent layouts
+  - ✅ **Server Actions** - Optimized data fetching for daily battles, progress, profile, and leaderboard
 - **Priorities:**
   1. **Curriculum Expansion:** Add more tracks, arcs, and battles.
-  2. **AI Memory (RAG):** Use embeddings for personalized tutoring.
+  2. **AI Memory (RAG):** Enhance embeddings for deeper personalized tutoring.
   3. **Analytics Dashboard:** Surface debug trace data for insights.
-  4. **Social Features:** Leaderboards, sharing solutions, community challenges.
+  4. **Social Features:** Solution sharing, community challenges, user interactions.
+  5. **Mobile Optimization:** Improve responsive design for mobile devices.
 
 ### Architecture Directives
 
@@ -492,7 +535,88 @@ The daily battles system uses three interconnected tables:
 - Composite primary key on `(userId, date)` ensures one completion per day
 - Streaks are calculated server-side and cached for efficient retrieval
 
-## 8. Track Visualization & Progress
+## 8. User Profile & Leaderboard
+
+### User Profile System
+
+The profile page ([`/profile`](file:///Users/souvik/Desktop/socrates/app/profile/page.tsx)) provides a comprehensive dashboard for authenticated users.
+
+**Components:**
+
+- [`ProfileHeader`](file:///Users/souvik/Desktop/socrates/components/profile/ProfileHeader.tsx) - User info, avatar, current/max streak, battles solved
+- [`ActivityHeatmap`](file:///Users/souvik/Desktop/socrates/components/profile/ActivityHeatmap.tsx) - GitHub-style contribution graph (last 365 days)
+- [`BattleHistory`](file:///Users/souvik/Desktop/socrates/components/profile/BattleHistory.tsx) - Last 10 completed battles with relative timestamps
+- [`NeuralLink`](file:///Users/souvik/Desktop/socrates/components/profile/NeuralLink.tsx) - AI insights about user's debugging patterns
+
+**Features:**
+
+- **Authentication Guard**: Redirects to home if user not signed in
+- **Streak Display**: Current streak highlighted with flame icon, personal records marked
+- **Activity Tracking**: Visual representation of daily activity with color intensity
+- **Neural Insights**: AI-generated observations about strengths, weaknesses, and patterns
+- **Battle Timeline**: Recent completions with challenge names and timestamps
+
+**Server Action:**
+
+```typescript
+// lib/actions/user-profile.ts
+getUserProfile(): Promise<UserProfileData | null>
+  - Fetches user info, streaks, insights, activity (365 days), and stats
+  - Parallel queries for optimal performance
+  - Returns null if user not authenticated
+```
+
+### Leaderboard System
+
+The leaderboard page ([`/leaderboard`](file:///Users/souvik/Desktop/socrates/app/leaderboard/page.tsx)) displays global rankings with dual-tab interface.
+
+**Components:**
+
+- [`LeaderboardRow`](file:///Users/souvik/Desktop/socrates/components/leaderboard/LeaderboardRow.tsx) - Individual ranking entry with medal/rank display
+
+**Features:**
+
+- **Dual Leaderboards**: Separate tabs for "Streak Masters" (by current streak) and "Top Solvers" (by battles completed)
+- **User Highlighting**: Current user's row highlighted with blue ring styling
+- **Medal System**: Top 3 ranks display gold/silver/bronze medal icons
+- **Avatar Display**: Shows user avatars or generated initials
+- **Default Limit**: 50 users per leaderboard (configurable)
+
+**Server Actions:**
+
+```typescript
+// lib/actions/leaderboard.ts
+getStreakLeaderboard(limit = 50): Promise<LeaderboardEntry[]>
+  - Fetches top users by current streak count
+  - Joins user_streaks with users table
+  - Returns ranked entries with usernames and avatars
+
+getSolvedLeaderboard(limit = 50): Promise<LeaderboardEntry[]>
+  - Fetches top users by completed challenge count
+  - Aggregates from challenge_progress table
+  - Returns ranked entries with solve counts
+```
+
+### Common Page Components
+
+Reusable components for consistent page layouts across `/tracks`, `/profile`, and `/leaderboard`:
+
+**Components:**
+
+- [`PageContainer`](file:///Users/souvik/Desktop/socrates/components/common/PageContainer.tsx) - Main wrapper with optional scroll area
+- [`PageHeader`](file:///Users/souvik/Desktop/socrates/components/common/PageHeader.tsx) - Title, highlighted text, description (left/center align)
+- [`PageNavSection`](file:///Users/souvik/Desktop/socrates/components/common/PageNavSection.tsx) - Back button + auth button combo
+- [`BackButton`](file:///Users/souvik/Desktop/socrates/components/common/BackButton.tsx) - Consistent back navigation
+- [`PageAuthButton`](file:///Users/souvik/Desktop/socrates/components/common/PageAuthButton.tsx) - Auth button for page headers
+
+**Design Benefits:**
+
+- Consistent spacing and margins across all pages
+- Standardized navigation patterns
+- Dark mode optimized styling
+- Responsive layouts (mobile + desktop)
+
+## 9. Track Visualization & Progress
 
 ### Arc Timeline
 
@@ -533,7 +657,7 @@ The track detail pages ([`/tracks/[trackId]`](file:///Users/souvik/Desktop/socra
 const completionPercentage = (completedBattles / totalBattles) * 100;
 ```
 
-## 9. Available Tracks & Arcs
+## 10. Available Tracks & Arcs
 
 ### Tracks Overview
 
