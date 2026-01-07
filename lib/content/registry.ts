@@ -54,6 +54,16 @@ const battleRegistry: BattleEntry[] = [
         (m) => m.buttonDisabledBattle
       ),
   },
+  {
+    id: "test-assertion-mismatch",
+    trackId: "frontend-debugging",
+    arcId: "foundations",
+    order: 4,
+    loader: () =>
+      import("./challenges/test-assertion-mismatch").then(
+        (m) => m.testAssertionMismatchBattle
+      ),
+  },
   // =============================================
   // TRACK: Frontend Debugging
   // ARC 2: State & Mutations
