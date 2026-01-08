@@ -1,7 +1,13 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { users, userStreaks, userMemories, progress } from "@/lib/db/schema";
+import {
+  users,
+  userStreaks,
+  userMemories,
+  progress,
+  userActivity,
+} from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, sql, desc, gte } from "drizzle-orm";
 
@@ -125,7 +131,8 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
 
 /**
  * Get activity data for the last 365 days
- * Returns array of dates with battle counts
+ * Returns array of dates with battle counts (deduplicated per day per challenge)
+ * Counts only one activity point per challenge per day, even if completed multiple times
  */
 async function getActivityData(
   userId: string
@@ -135,22 +142,23 @@ async function getActivityData(
     const oneYearAgo = new Date();
     oneYearAgo.setDate(oneYearAgo.getDate() - 365);
 
-    // Query challenge_progress for completed battles in last 365 days
+    // Query user_activity for all completions in last 365 days
+    // Group by date AND challengeId to count unique battles per day
+    // Then count distinct challenges per date
     const results = await db
       .select({
-        date: sql<string>`DATE(${progress.completedAt})`,
-        battleCount: sql<number>`COUNT(DISTINCT ${progress.challengeId})`,
+        date: sql<string>`DATE(${userActivity.completedAt})`,
+        battleCount: sql<number>`COUNT(DISTINCT ${userActivity.challengeId})`,
       })
-      .from(progress)
+      .from(userActivity)
       .where(
         and(
-          eq(progress.userId, userId),
-          eq(progress.status, "completed"),
-          gte(progress.completedAt, oneYearAgo)
+          eq(userActivity.userId, userId),
+          gte(userActivity.completedAt, oneYearAgo)
         )
       )
-      .groupBy(sql`DATE(${progress.completedAt})`)
-      .orderBy(sql`DATE(${progress.completedAt})`);
+      .groupBy(sql`DATE(${userActivity.completedAt})`)
+      .orderBy(sql`DATE(${userActivity.completedAt})`);
 
     return results.map((r) => ({
       date: r.date,

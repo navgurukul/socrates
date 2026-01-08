@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { progress } from "@/lib/db/schema";
+import { progress, userActivity } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and } from "drizzle-orm";
 
@@ -29,6 +29,8 @@ export async function submitSuccess(
       ),
     });
 
+    const completedAt = new Date();
+
     if (existing) {
       // Update existing record with new code
       await db
@@ -37,7 +39,7 @@ export async function submitSuccess(
           status: "completed",
           solutionCode: code,
           attempts: existing.attempts! + attempts,
-          completedAt: new Date(),
+          completedAt,
         })
         .where(eq(progress.id, existing.id));
     } else {
@@ -48,9 +50,18 @@ export async function submitSuccess(
         status: "completed",
         solutionCode: code,
         attempts,
-        completedAt: new Date(),
+        completedAt,
       });
     }
+
+    // 3. Log activity for heatmap (append-only, never updates)
+    // This ensures we capture every completion, even re-completions
+    await db.insert(userActivity).values({
+      userId: user.id,
+      challengeId,
+      source: "track",
+      completedAt,
+    });
 
     return { success: true };
   } catch (error) {

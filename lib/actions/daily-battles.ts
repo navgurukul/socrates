@@ -1,7 +1,12 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { dailySchedule, dailyProgress, userStreaks } from "@/lib/db/schema";
+import {
+  dailySchedule,
+  dailyProgress,
+  userStreaks,
+  userActivity,
+} from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, desc } from "drizzle-orm";
 import { getDailyChallenge } from "@/lib/content/dailyRegistry";
@@ -182,6 +187,8 @@ export async function completeDailyBattle(
       return { success: false, error: "Not today's daily battle" };
     }
 
+    const completedAt = new Date();
+
     // 2. Insert/update daily progress
     await db
       .insert(dailyProgress)
@@ -189,19 +196,27 @@ export async function completeDailyBattle(
         userId: user.id,
         date: todayDate,
         challengeId,
-        completedAt: new Date(),
+        completedAt,
         status: "solved",
       })
       .onConflictDoUpdate({
         target: [dailyProgress.userId, dailyProgress.date],
         set: {
           challengeId,
-          completedAt: new Date(),
+          completedAt,
           status: "solved",
         },
       });
 
-    // 3. Update streak
+    // 3. Log activity for heatmap (append-only)
+    await db.insert(userActivity).values({
+      userId: user.id,
+      challengeId,
+      source: "daily",
+      completedAt,
+    });
+
+    // 4. Update streak
     const streakData = await updateUserStreak(user.id, todayDate);
 
     return { success: true, streak: streakData };

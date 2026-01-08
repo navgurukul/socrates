@@ -127,3 +127,37 @@ export const userStreaks = pgTable("user_streaks", {
   lastCompletedDate: date("last_completed_date"), // User's local date of last completion
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// ============================================
+// USER ACTIVITY LOG
+// ============================================
+
+// 7. User Activity
+// Append-only log of all user activity for heatmap and analytics
+// This table consolidates activity from both track battles and daily battles
+export const userActivity = pgTable(
+  "user_activity",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    challengeId: text("challenge_id").notNull(), // e.g. "shopping-cart-bug"
+    source: text("source").$type<"track" | "daily">().notNull(), // Where the completion came from
+    completedAt: timestamp("completed_at").notNull().defaultNow(), // UTC timestamp of completion
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    // Composite index for fast heatmap queries (user + date range)
+    userDateIdx: index("user_activity_user_date_idx").on(
+      table.userId,
+      table.completedAt
+    ),
+    // Index for deduplication queries
+    userChallengeIdx: index("user_activity_user_challenge_idx").on(
+      table.userId,
+      table.challengeId,
+      table.completedAt
+    ),
+  })
+);

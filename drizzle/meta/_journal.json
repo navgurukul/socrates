@@ -15,6 +15,13 @@
       "when": 1766159737011,
       "tag": "0001_rainy_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767856731195,
+      "tag": "0002_hesitant_true_believers",
+      "breakpoints": true
     }
   ]
 }
