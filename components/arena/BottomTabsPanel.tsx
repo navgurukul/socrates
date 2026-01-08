@@ -16,7 +16,7 @@ interface BottomTabsPanelProps {
   testOutput: string;
   reviewData: ReviewData | null;
   attemptCount: number;
-  challengeId: string; // For memory loop recall
+  challengeId: string;
   source?: string; // "daily" | "daily-archive" | undefined
 }
 
@@ -40,13 +40,13 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
       <TabsList className="h-9 w-full justify-start rounded-none border-b border-zinc-800 bg-zinc-900 px-2">
         <TabsTrigger
           value={TABS.CONSOLE}
-          className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
+          className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-500"
         >
           Console
         </TabsTrigger>
         <TabsTrigger
           value={TABS.TUTOR}
-          className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white"
+          className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-500"
         >
           AI Tutor
         </TabsTrigger>
@@ -57,7 +57,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
         forceMount
         className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
       >
-        <Terminal onTerminalReady={onTerminalReady} />
+        <Terminal key={challengeId} onTerminalReady={onTerminalReady} />
       </TabsContent>
 
       <TabsContent
@@ -66,6 +66,7 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
         className="flex-1 m-0 p-0 overflow-hidden outline-none data-[state=inactive]:hidden"
       >
         <AiTutor
+          key={challengeId}
           files={files}
           testOutput={testOutput}
           reviewData={reviewData}

@@ -183,6 +183,7 @@ export function BattleProvider({
   const setActiveBottomTab = useBattleStore(
     (state) => state.setActiveBottomTab
   );
+  const resetBattle = useBattleStore((state) => state.resetBattle);
 
   // Editor Store - manages file state
   const fileContents = useEditorStore((state) => state.fileContents);
@@ -192,6 +193,7 @@ export function BattleProvider({
   const updateFile = useEditorStore((state) => state.updateFile);
   const setActiveFile = useEditorStore((state) => state.setActiveFile);
   const setMonacoInstance = useEditorStore((state) => state.setMonacoInstance);
+  const resetEditor = useEditorStore((state) => state.resetEditor);
 
   // User Store
   const markSolved = useUserStore((state) => state.markSolved);
@@ -208,6 +210,13 @@ export function BattleProvider({
 
   // Sync file contents to WebContainer filesystem
   useContainerSync(instance, fileContents, isEnvReady);
+
+  // Reset stores when challengeId changes (battle switch)
+  useEffect(() => {
+    // Reset Zustand stores to ensure clean slate for new battle
+    resetBattle();
+    resetEditor();
+  }, [challengeId, resetBattle, resetEditor]);
 
   // Setup Challenge & Signal Readiness
   useEffect(() => {

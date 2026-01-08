@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -47,7 +47,8 @@ export const BattleHeader = memo(function BattleHeader({
             !isRunning && "bg-emerald-600 hover:bg-emerald-700"
           )}
         >
-          {isRunning ? "Running..." : "Run Tests"}
+          <Play className="h-4 w-4" />
+          {isRunning ? "Running..." : "Run"}
         </Button>
       </div>
     </header>
