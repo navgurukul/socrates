@@ -40,7 +40,7 @@ export function useChallengeLoader(challengeId: string) {
         if (!challengeData) {
           setNotFound(true);
           setChallenge(null);
-          router.push("/");
+          router.replace("/");
         } else {
           setChallenge(challengeData);
           setNotFound(false);

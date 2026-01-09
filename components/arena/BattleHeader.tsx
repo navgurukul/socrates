@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { ArrowLeft, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,16 +20,33 @@ export const BattleHeader = memo(function BattleHeader({
   disabled,
 }: BattleHeaderProps) {
   const router = useRouter();
+  const entryHistoryLengthRef = useRef<number>(0);
+
+  // Capture history length when component mounts (when entering battle page)
+  useEffect(() => {
+    entryHistoryLengthRef.current = window.history.length;
+  }, []);
 
   const handleBack = () => {
-    router.back();
+    const currentLength = window.history.length;
+    const entryLength = entryHistoryLengthRef.current;
+    const extraEntries = currentLength - entryLength;
+
+    if (extraEntries > 0) {
+      // If iframe or other interactions added history entries, go back multiple times
+      console.debug(`[BattleHeader] Going back ${extraEntries + 1} entries to exit battle page`);
+      window.history.go(-(extraEntries + 1));
+    } else {
+      // Normal single back navigation
+      router.back();
+    }
   };
   return (
     <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
       <div className="flex items-center gap-4">
         <ArrowLeft
           className="cursor-pointer h-5 w-5 text-white hover:text-zinc-400"
-          onClick={() => handleBack()}
+          onClick={handleBack}
         />
         <div className="flex flex-col">
           <h1 className="text-sm font-bold leading-none">{challengeTitle}</h1>
