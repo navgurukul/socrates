@@ -34,7 +34,11 @@ export const BattleHeader = memo(function BattleHeader({
 
     if (extraEntries > 0) {
       // If iframe or other interactions added history entries, go back multiple times
-      console.debug(`[BattleHeader] Going back ${extraEntries + 1} entries to exit battle page`);
+      console.debug(
+        `[BattleHeader] Going back ${
+          extraEntries + 1
+        } entries to exit battle page`
+      );
       window.history.go(-(extraEntries + 1));
     } else {
       // Normal single back navigation
