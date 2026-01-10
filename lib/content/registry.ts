@@ -46,6 +46,36 @@ const battleRegistry: BattleEntry[] = [
         (m) => m.testAssertionMismatchBattle
       ),
   },
+  {
+    id: "console-error-production",
+    trackId: "frontend-debugging",
+    arcId: "debugging-foundations",
+    order: 3,
+    loader: () =>
+      import("./challenges/console-error-production").then(
+        (m) => m.consoleErrorProductionBattle
+      ),
+  },
+  {
+    id: "network-silent-failure",
+    trackId: "frontend-debugging",
+    arcId: "debugging-foundations",
+    order: 4,
+    loader: () =>
+      import("./challenges/network-silent-failure").then(
+        (m) => m.networkSilentFailureBattle
+      ),
+  },
+  {
+    id: "lighthouse-performance",
+    trackId: "frontend-debugging",
+    arcId: "debugging-foundations",
+    order: 5,
+    loader: () =>
+      import("./challenges/lighthouse-performance").then(
+        (m) => m.lighthousePerformanceBattle
+      ),
+  },
   // =============================================
   // TRACK: Frontend Debugging
   // ARC 2: JavaScript Logic & State Bugs
