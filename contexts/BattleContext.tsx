@@ -406,13 +406,6 @@ export function BattleProvider({
     }
   }, [isEnvReady, resetActivityTimer]);
 
-  // Debug trace logging (development only)
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[DEBUG TRACE]", trace);
-    }
-  }, [trace]);
-
   // Wrapped actions
   const updateFileContent = useCallback(
     (path: string, content: string) => {

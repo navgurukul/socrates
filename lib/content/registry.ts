@@ -98,6 +98,46 @@ const battleRegistry: BattleEntry[] = [
     loader: () =>
       import("./challenges/shopping-cart").then((m) => m.shoppingCartBattle),
   },
+  {
+    id: "filter-not-working",
+    trackId: "frontend-debugging",
+    arcId: "js-logic-and-state",
+    order: 3,
+    loader: () =>
+      import("./challenges/filter-not-working").then(
+        (m) => m.filterNotWorkingBattle
+      ),
+  },
+  {
+    id: "total-calculator-off",
+    trackId: "frontend-debugging",
+    arcId: "js-logic-and-state",
+    order: 4,
+    loader: () =>
+      import("./challenges/total-calculator-off").then(
+        (m) => m.totalCalculatorOffBattle
+      ),
+  },
+  {
+    id: "state-sync-broken",
+    trackId: "frontend-debugging",
+    arcId: "js-logic-and-state",
+    order: 5,
+    loader: () =>
+      import("./challenges/state-sync-broken").then(
+        (m) => m.stateSyncBrokenBattle
+      ),
+  },
+  {
+    id: "mutation-surprise",
+    trackId: "frontend-debugging",
+    arcId: "js-logic-and-state",
+    order: 6,
+    loader: () =>
+      import("./challenges/mutation-surprise").then(
+        (m) => m.mutationSurpriseBattle
+      ),
+  },
   // =============================================
   // TRACK: Frontend Debugging
   // ARC 3: React & Component Bugs

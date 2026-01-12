@@ -51,7 +51,7 @@ export const PreviewPanel = memo(function PreviewPanel({
           src={previewUrl}
           className="w-full h-full border-none bg-white pt-7"
           title="Live Preview"
-          sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+          sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation"
         />
       ) : (
         <div className="flex h-full flex-col items-center justify-center text-zinc-500 gap-2">
