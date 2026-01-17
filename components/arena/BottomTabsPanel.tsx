@@ -44,12 +44,12 @@ export const BottomTabsPanel = memo(function BottomTabsPanel({
         >
           Console
         </TabsTrigger>
-        <TabsTrigger
+        {/* <TabsTrigger
           value={TABS.TUTOR}
           className="h-7 rounded-sm px-3 text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-500"
         >
           AI Tutor
-        </TabsTrigger>
+        </TabsTrigger> */}
       </TabsList>
 
       <TabsContent

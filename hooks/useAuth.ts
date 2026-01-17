@@ -89,7 +89,7 @@ export function useAuth(): UseAuthReturn {
     try {
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: "github",
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
