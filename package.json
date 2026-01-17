@@ -6,7 +6,13 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "seed:daily": "npx tsx scripts/seed-daily-schedule.ts seed 30",
+    "seed:embeddings": "npx tsx scripts/ingest-challenges.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.45",
