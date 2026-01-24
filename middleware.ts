@@ -45,6 +45,11 @@ export async function middleware(request: NextRequest) {
     console.error("Middleware auth error:", error);
   }
 
+  // Apply security headers required for WebContainers
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  response.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+
   return response;
 }
 

@@ -54,7 +54,7 @@ export default function TrackDetailPage({ params }: TrackDetailPageProps) {
 
       {/* Content */}
       <Suspense fallback={<LoadingScreen fullScreen={false} />}>
-        <TrackDetailContent trackId={params.trackId} />
+        <TrackDetailContent trackId={params?.trackId} />
       </Suspense>
     </PageContainer>
   );

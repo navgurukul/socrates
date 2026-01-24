@@ -20,16 +20,49 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createClient();
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
-      code
-    );
-    if (!exchangeError) {
+    const {
+      data: { session },
+      error: exchangeError,
+    } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (!exchangeError && session?.user) {
+      // Check if user exists in our database
+      try {
+        const { db } = await import("@/lib/db");
+        const { users } = await import("@/lib/db/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const existingUser = await db.query.users.findFirst({
+          where: eq(users.id, session.user.id),
+        });
+
+        if (!existingUser) {
+          // Create new user record
+          await db.insert(users).values({
+            id: session.user.id,
+            email: session.user.email!,
+            name:
+              session.user.user_metadata.full_name ||
+              session.user.user_metadata.name ||
+              session.user.email?.split("@")[0],
+            avatarUrl: session.user.user_metadata.avatar_url,
+          });
+        }
+      } catch (dbError) {
+        console.error("Error syncing user to database:", dbError);
+        // We continue anyway, hoping it's a transient issue or user exists
+        // If it fails critically, the profile page will handle the missing user
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
-    console.error("Session exchange error:", exchangeError.message);
-    return NextResponse.redirect(
-      `${origin}/?auth_error=${encodeURIComponent(exchangeError.message)}`
-    );
+
+    if (exchangeError) {
+      console.error("Session exchange error:", exchangeError.message);
+      return NextResponse.redirect(
+        `${origin}/?auth_error=${encodeURIComponent(exchangeError.message)}`
+      );
+    }
   }
 
   // No code and no error - redirect to home
