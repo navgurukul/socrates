@@ -9,6 +9,7 @@ import {
   index,
   date,
   primaryKey,
+  bigint,
 } from "drizzle-orm/pg-core";
 
 // 1. Users Table
@@ -161,3 +162,96 @@ export const userActivity = pgTable(
     ),
   })
 );
+
+// ============================================
+// VERSES ARENA (Multiplayer)
+// ============================================
+
+// 8. Verses Rooms
+// Stores room configuration and match state
+export const versesRooms = pgTable(
+  "verses_rooms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    hostUserId: uuid("host_user_id")
+      .references(() => users.id)
+      .notNull(),
+    joinCode: text("join_code").notNull().unique(), // 6-char code, e.g., "X7J9K2"
+    trackId: text("track_id"), // Scope filter (mutually exclusive with arcId)
+    arcId: text("arc_id"), // Scope filter
+    timeLimit: integer("time_limit").notNull().default(600), // seconds (10 min)
+    status: text("status")
+      .$type<"waiting" | "in_progress" | "finished">()
+      .notNull()
+      .default("waiting"),
+    challengePool: jsonb("challenge_pool").$type<string[]>(), // Array of battle IDs
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    joinCodeIdx: index("idx_verses_rooms_join_code").on(table.joinCode),
+    statusIdx: index("idx_verses_rooms_status").on(table.status),
+  })
+);
+
+// 9. Verses Participants
+// Tracks each player's state within a room
+export const versesParticipants = pgTable(
+  "verses_participants",
+  {
+    roomId: uuid("room_id")
+      .references(() => versesRooms.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    status: text("status")
+      .$type<"joined" | "ready" | "playing" | "finished">()
+      .notNull()
+      .default("joined"),
+    currentChallengeIdx: integer("current_challenge_idx").default(0),
+    challengesSolved: integer("challenges_solved").default(0),
+    totalTimeMs: bigint("total_time_ms", { mode: "number" }).default(0),
+    joinedAt: timestamp("joined_at").defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.roomId, table.userId] }),
+    userIdx: index("idx_verses_participants_user").on(table.userId),
+  })
+);
+
+// 10. Verses Results
+// Stores final match results for leaderboard
+export const versesResults = pgTable(
+  "verses_results",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id")
+      .references(() => versesRooms.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    rank: integer("rank").notNull(),
+    challengesSolved: integer("challenges_solved").notNull(),
+    totalTimeMs: bigint("total_time_ms", { mode: "number" }).notNull(),
+    completedAt: timestamp("completed_at").defaultNow(),
+  },
+  (table) => ({
+    roomIdx: index("idx_verses_results_room").on(table.roomId),
+    userIdx: index("idx_verses_results_user").on(table.userId),
+  })
+);
+
+// 11. User Verses Stats
+// Cached aggregate stats for global leaderboard
+export const userVersesStats = pgTable("user_verses_stats", {
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .primaryKey(),
+  totalWins: integer("total_wins").default(0),
+  totalMatches: integer("total_matches").default(0),
+  totalChallengesSolved: integer("total_challenges_solved").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});

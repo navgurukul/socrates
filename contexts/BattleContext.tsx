@@ -105,7 +105,9 @@ export const BattleContext = createContext<BattleContextValue | null>(null);
 interface BattleProviderProps {
   children: React.ReactNode;
   challengeId: string;
-  source?: string; // "daily" | "daily-archive" | undefined
+  source?: string; // "daily" | "daily-archive" | "verses" | undefined
+  isVersesMode?: boolean;
+  onVersesComplete?: () => void;
 }
 
 /**
@@ -116,6 +118,8 @@ export function BattleProvider({
   children,
   challengeId,
   source,
+  isVersesMode,
+  onVersesComplete,
 }: BattleProviderProps) {
   // Local state
   const [term, setTerm] = useState<XTerminal | null>(null);
@@ -276,6 +280,12 @@ export function BattleProvider({
     if (status === "passed" && !hasHandledPassRef.current) {
       hasHandledPassRef.current = true;
 
+      // 🎮 Verses Mode: Just call the callback and skip standard flow
+      if (isVersesMode) {
+        onVersesComplete?.();
+        return;
+      }
+
       // Complete debug trace
       completeTrace();
 
@@ -348,6 +358,8 @@ export function BattleProvider({
     status,
     challengeId,
     source,
+    isVersesMode,
+    onVersesComplete,
     markSolved,
     fileContents,
     attemptCount,

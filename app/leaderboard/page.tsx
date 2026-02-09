@@ -5,9 +5,10 @@ import {
   getStreakLeaderboard,
   getSolvedLeaderboard,
 } from "@/lib/actions/leaderboard";
+import { getVersesLeaderboard } from "@/lib/actions/verses";
 import { PageContainer, PageNavSection, PageHeader } from "@/components/common";
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import { Trophy, Flame } from "lucide-react";
+import { Trophy, Flame, Swords } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
@@ -16,11 +17,14 @@ export const metadata = {
     "See where you stand among the debugging elite. Top streaks and solvers.",
 };
 
+export const dynamic = "force-dynamic";
+
 async function LeaderboardContent() {
   // Fetch leaderboard data in parallel
-  const [streakData, solvedData] = await Promise.all([
+  const [streakData, solvedData, versesData] = await Promise.all([
     getStreakLeaderboard(),
     getSolvedLeaderboard(),
+    getVersesLeaderboard("wins"),
   ]);
 
   // Get current user ID for highlighting
@@ -34,7 +38,7 @@ async function LeaderboardContent() {
     <Tabs defaultValue="streaks" className="w-full">
       {/* Tab Navigation */}
       <div className="flex justify-center mb-8">
-        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+        <TabsList className="grid w-full max-w-[500px] grid-cols-3">
           <TabsTrigger value="streaks">
             <Flame className="w-4 h-4 mr-2 text-orange-500" />
             Streak Masters
@@ -42,6 +46,10 @@ async function LeaderboardContent() {
           <TabsTrigger value="solved">
             <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
             Top Solvers
+          </TabsTrigger>
+          <TabsTrigger value="verses">
+            <Swords className="w-4 h-4 mr-2 text-purple-500" />
+            Verses Champions
           </TabsTrigger>
         </TabsList>
       </div>
@@ -82,6 +90,26 @@ async function LeaderboardContent() {
         ) : (
           <div className="text-center py-12 text-zinc-500">
             No solved challenges yet. Be the first!
+          </div>
+        )}
+      </TabsContent>
+
+      {/* Verses Champions Leaderboard */}
+      <TabsContent
+        value="verses"
+        className="space-y-3 animate-in fade-in slide-in-from-bottom-2"
+      >
+        {versesData.length > 0 ? (
+          versesData.map((entry) => (
+            <LeaderboardRow
+              key={entry.userId}
+              entry={entry}
+              isCurrentUser={entry.userId === currentUserId}
+            />
+          ))
+        ) : (
+          <div className="text-center py-12 text-zinc-500">
+            No Verses matches played yet. Challenge your friends!
           </div>
         )}
       </TabsContent>
