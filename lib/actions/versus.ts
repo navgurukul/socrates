@@ -203,7 +203,7 @@ export async function joinRoom(joinCode: string): Promise<
     const participants = await db
       .select({
         roomId: versusParticipants.roomId,
-        oduserId: versusParticipants.userId,
+        userId: versusParticipants.userId,
         username: users.name,
         avatarUrl: users.avatarUrl,
         status: versusParticipants.status,
@@ -219,7 +219,7 @@ export async function joinRoom(joinCode: string): Promise<
       room: room as VersusRoom,
       participants: participants.map((p) => ({
         roomId: p.roomId,
-        userId: p.oduserId,
+        userId: p.userId,
         username: p.username || "Anonymous",
         avatarUrl: p.avatarUrl,
         status: p.status as VersusParticipant["status"],
@@ -266,7 +266,7 @@ export async function getRoom(roomId: string): Promise<
     const participants = await db
       .select({
         roomId: versusParticipants.roomId,
-        oduserId: versusParticipants.userId,
+        userId: versusParticipants.userId,
         username: users.name,
         avatarUrl: users.avatarUrl,
         status: versusParticipants.status,
@@ -282,7 +282,7 @@ export async function getRoom(roomId: string): Promise<
       room: room as VersusRoom,
       participants: participants.map((p) => ({
         roomId: p.roomId,
-        userId: p.oduserId,
+        userId: p.userId,
         username: p.username || "Anonymous",
         avatarUrl: p.avatarUrl,
         status: p.status as VersusParticipant["status"],
@@ -552,7 +552,7 @@ export async function submitChallengeResult(
 async function calculateRankings(roomId: string): Promise<VersusRanking[]> {
   const participants = await db
     .select({
-      oduserId: versusParticipants.userId,
+      userId: versusParticipants.userId,
       username: users.name,
       avatarUrl: users.avatarUrl,
       solved: versusParticipants.challengesSolved,
@@ -567,7 +567,7 @@ async function calculateRankings(roomId: string): Promise<VersusRanking[]> {
     );
 
   return participants.map((p, index) => ({
-    userId: p.oduserId,
+    userId: p.userId,
     username: p.username || "Anonymous",
     avatarUrl: p.avatarUrl,
     solved: p.solved || 0,
@@ -638,7 +638,7 @@ export async function finishMatch(
       // Already finished, just return results
       const results = await db
         .select({
-          oduserId: versusResults.userId,
+          userId: versusResults.userId,
           username: users.name,
           avatarUrl: users.avatarUrl,
           solved: versusResults.challengesSolved,
@@ -652,7 +652,7 @@ export async function finishMatch(
 
       return {
         finalResults: results.map((r) => ({
-          userId: r.oduserId,
+          userId: r.userId,
           username: r.username || "Anonymous",
           avatarUrl: r.avatarUrl,
           solved: r.solved,
@@ -752,7 +752,7 @@ export async function getVersusLeaderboard(
 
     const results = await db
       .select({
-        oduserId: users.id,
+        userId: users.id,
         username: users.name,
         avatarUrl: users.avatarUrl,
         value: orderColumn,
@@ -763,7 +763,7 @@ export async function getVersusLeaderboard(
       .limit(limit);
 
     return results.map((entry, index) => ({
-      userId: entry.oduserId,
+      userId: entry.userId,
       username: entry.username || "Anonymous Hacker",
       avatarUrl: entry.avatarUrl,
       value: Number(entry.value ?? 0),

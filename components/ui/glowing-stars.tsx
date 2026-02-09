@@ -4,17 +4,18 @@ import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
-export const GlowingStarsBackgroundCard = ({
-  className,
-  children,
-}: {
-  className?: string;
-  children?: React.ReactNode;
-}) => {
+export const GlowingStarsBackgroundCard = React.forwardRef<
+  HTMLDivElement,
+  {
+    className?: string;
+    children?: React.ReactNode;
+  } & React.HTMLAttributes<HTMLDivElement>
+>(({ className, children, ...props }, ref) => {
   const [mouseEnter, setMouseEnter] = useState(false);
 
   return (
     <div
+      ref={ref}
       onMouseEnter={() => {
         setMouseEnter(true);
       }}
@@ -25,6 +26,7 @@ export const GlowingStarsBackgroundCard = ({
         "bg-[linear-gradient(110deg,#333_0.6%,#222)] p-4 max-w-md max-h-[20rem] h-full w-full rounded-xl border border-[#eaeaea] dark:border-neutral-600",
         className
       )}
+      {...props}
     >
       <div className="flex justify-center items-center">
         <Illustration mouseEnter={mouseEnter} />
@@ -32,7 +34,9 @@ export const GlowingStarsBackgroundCard = ({
       <div className="px-2 pb-6">{children}</div>
     </div>
   );
-};
+});
+
+GlowingStarsBackgroundCard.displayName = "GlowingStarsBackgroundCard";
 
 export const GlowingStarsDescription = ({
   className,
