@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuthContext } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { LogOut, LogIn, User, Trophy } from "lucide-react";
+import { LogOut, LogIn, User, Trophy, Swords } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 
 export function AuthButton() {
@@ -23,6 +23,11 @@ export function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-2">
+        <Link href="/verses">
+          <Button variant="link" className="text-zinc-400 hover:text-zinc-50">
+            <Swords className="w-4 h-4" />
+          </Button>
+        </Link>
         <Link href="/leaderboard">
           <Button variant="link" className="text-zinc-400 hover:text-zinc-50">
             <Trophy className="w-4 h-4" />

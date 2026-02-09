@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  GlowingStarsBackgroundCard,
+  GlowingStarsDescription,
+  GlowingStarsTitle,
+} from "@/components/ui/glowing-stars";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Swords, Users, Trophy, Clock } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { createRoom, joinRoom } from "@/lib/actions/verses";
 import { getAllTracks } from "@/lib/content/registry";
 import { getArcsByTrack } from "@/lib/content/arcs";
@@ -97,57 +101,23 @@ export function VersesLandingContent({
 
   return (
     <div className="space-y-12">
-      {/* Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6 bg-zinc-900/40 border-zinc-800/50">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-emerald-500/10">
-              <Swords className="w-6 h-6 text-emerald-400" />
-            </div>
-            <h3 className="font-semibold text-white">Head-to-Head</h3>
-          </div>
-          <p className="text-zinc-400 text-sm">
-            Compete against 2-4 players in real-time. Race to solve the most
-            challenges.
-          </p>
-        </Card>
-
-        <Card className="p-6 bg-zinc-900/40 border-zinc-800/50">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-blue-500/10">
-              <Clock className="w-6 h-6 text-blue-400" />
-            </div>
-            <h3 className="font-semibold text-white">Timed Battles</h3>
-          </div>
-          <p className="text-zinc-400 text-sm">
-            10-minute matches with 15 challenges. Skip tough ones and come back
-            later.
-          </p>
-        </Card>
-
-        <Card className="p-6 bg-zinc-900/40 border-zinc-800/50">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-yellow-500/10">
-              <Trophy className="w-6 h-6 text-yellow-400" />
-            </div>
-            <h3 className="font-semibold text-white">Live Rankings</h3>
-          </div>
-          <p className="text-zinc-400 text-sm">
-            Watch the leaderboard update in real-time as players complete
-            challenges.
-          </p>
-        </Card>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row justify-center gap-4">
+      {/* Action Cards */}
+      <div className="flex flex-col md:flex-row gap-8 max-w-5xl mx-auto items-center justify-center">
         {/* Create Room Dialog */}
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="gap-2">
-              <Users className="w-5 h-5" />
-              Create Room
-            </Button>
+            <GlowingStarsBackgroundCard className="cursor-pointer border-zinc-800 max-w-md w-full group">
+              <GlowingStarsTitle>Create a room</GlowingStarsTitle>
+              <div className="flex justify-between items-end">
+                <GlowingStarsDescription>
+                  Set up your own debugging battle and invite friends to
+                  compete.
+                </GlowingStarsDescription>
+                <div className="h-8 w-8 rounded-full bg-[hsla(0,0%,100%,.1)] flex items-center justify-center transition-all duration-300 group-hover:h-10 group-hover:w-10 group-hover:bg-emerald-500">
+                  <Plus className="h-4 w-4 text-white stroke-2" />
+                </div>
+              </div>
+            </GlowingStarsBackgroundCard>
           </DialogTrigger>
           <DialogContent className="bg-zinc-900 border-zinc-800">
             <DialogHeader>
@@ -259,10 +229,17 @@ export function VersesLandingContent({
         {/* Join Room Dialog */}
         <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" variant="outline" className="gap-2">
-              <Swords className="w-5 h-5" />
-              Join Room
-            </Button>
+            <GlowingStarsBackgroundCard className="cursor-pointer border-zinc-800 max-w-md w-full group">
+              <GlowingStarsTitle>Join a room</GlowingStarsTitle>
+              <div className="flex justify-between items-end">
+                <GlowingStarsDescription>
+                  Enter a room code to join an existing battle.
+                </GlowingStarsDescription>
+                <div className="h-8 w-8 rounded-full bg-[hsla(0,0%,100%,.1)] flex items-center justify-center transition-all duration-300 group-hover:h-10 group-hover:w-10 group-hover:bg-emerald-500">
+                  <Users className="h-4 w-4 text-white stroke-2" />
+                </div>
+              </div>
+            </GlowingStarsBackgroundCard>
           </DialogTrigger>
           <DialogContent className="bg-zinc-900 border-zinc-800">
             <DialogHeader>

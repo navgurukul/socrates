@@ -84,10 +84,6 @@ export function VersesRoom({
     } else {
       setStatus("finished");
     }
-
-    return () => {
-      reset();
-    };
   }, [
     initialRoom,
     initialParticipants,
@@ -98,7 +94,6 @@ export function VersesRoom({
     setParticipants,
     startMatch,
     setStatus,
-    reset,
   ]);
 
   // Set up realtime channel
