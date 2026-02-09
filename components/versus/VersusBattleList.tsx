@@ -1,13 +1,13 @@
 "use client";
 
-import { useVersesStore, BattleState } from "@/lib/store/verses-store";
+import { useVersusStore, BattleState } from "@/lib/store/versus-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Check, Play, SkipForward, Lock, Circle } from "lucide-react";
 
-export function VersesBattleList() {
+export function VersusBattleList() {
   const { challengePool, battleStates, currentBattleId, selectBattle } =
-    useVersesStore();
+    useVersusStore();
 
   const getStatusIcon = (state: BattleState) => {
     switch (state) {

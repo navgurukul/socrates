@@ -5,19 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface VersesHeaderProps {
+interface VersusHeaderProps {
   remainingSeconds: number | null;
   solvedCount: number;
   totalBattles: number;
   onEarlySubmit: () => void;
 }
 
-export function VersesHeader({
+export function VersusHeader({
   remainingSeconds,
   solvedCount,
   totalBattles,
   onEarlySubmit,
-}: VersesHeaderProps) {
+}: VersusHeaderProps) {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -32,7 +32,7 @@ export function VersesHeader({
       <div className="flex items-center gap-4">
         <div className="flex flex-col">
           <h1 className="text-sm font-bold leading-none text-white">
-            Verses Match
+            Versus Match
           </h1>
           <span className="text-xs text-zinc-500">Multiplayer Battle</span>
         </div>
@@ -40,10 +40,7 @@ export function VersesHeader({
 
       <div className="flex items-center gap-4">
         {/* Progress */}
-        <Badge
-          variant="secondary"
-          className="gap-2 px-3 py-1.5 bg-zinc-800/50"
-        >
+        <Badge variant="secondary" className="gap-2 px-3 py-1.5 bg-zinc-800/50">
           <CheckCircle className="w-4 h-4 text-green-400" />
           <span className="text-zinc-200">
             {solvedCount} / {totalBattles}

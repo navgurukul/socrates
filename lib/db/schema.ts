@@ -164,13 +164,13 @@ export const userActivity = pgTable(
 );
 
 // ============================================
-// VERSES ARENA (Multiplayer)
+// VERSUS ARENA (Multiplayer)
 // ============================================
 
-// 8. Verses Rooms
+// 8. Versus Rooms
 // Stores room configuration and match state
-export const versesRooms = pgTable(
-  "verses_rooms",
+export const versusRooms = pgTable(
+  "versus_rooms",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     hostUserId: uuid("host_user_id")
@@ -190,18 +190,18 @@ export const versesRooms = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
-    joinCodeIdx: index("idx_verses_rooms_join_code").on(table.joinCode),
-    statusIdx: index("idx_verses_rooms_status").on(table.status),
+    joinCodeIdx: index("idx_versus_rooms_join_code").on(table.joinCode),
+    statusIdx: index("idx_versus_rooms_status").on(table.status),
   })
 );
 
-// 9. Verses Participants
+// 9. Versus Participants
 // Tracks each player's state within a room
-export const versesParticipants = pgTable(
-  "verses_participants",
+export const versusParticipants = pgTable(
+  "versus_participants",
   {
     roomId: uuid("room_id")
-      .references(() => versesRooms.id, { onDelete: "cascade" })
+      .references(() => versusRooms.id, { onDelete: "cascade" })
       .notNull(),
     userId: uuid("user_id")
       .references(() => users.id)
@@ -217,18 +217,18 @@ export const versesParticipants = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.roomId, table.userId] }),
-    userIdx: index("idx_verses_participants_user").on(table.userId),
+    userIdx: index("idx_versus_participants_user").on(table.userId),
   })
 );
 
-// 10. Verses Results
+// 10. Versus Results
 // Stores final match results for leaderboard
-export const versesResults = pgTable(
-  "verses_results",
+export const versusResults = pgTable(
+  "versus_results",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     roomId: uuid("room_id")
-      .references(() => versesRooms.id, { onDelete: "cascade" })
+      .references(() => versusRooms.id, { onDelete: "cascade" })
       .notNull(),
     userId: uuid("user_id")
       .references(() => users.id)
@@ -239,14 +239,14 @@ export const versesResults = pgTable(
     completedAt: timestamp("completed_at").defaultNow(),
   },
   (table) => ({
-    roomIdx: index("idx_verses_results_room").on(table.roomId),
-    userIdx: index("idx_verses_results_user").on(table.userId),
+    roomIdx: index("idx_versus_results_room").on(table.roomId),
+    userIdx: index("idx_versus_results_user").on(table.userId),
   })
 );
 
-// 11. User Verses Stats
+// 11. User Versus Stats
 // Cached aggregate stats for global leaderboard
-export const userVersesStats = pgTable("user_verses_stats", {
+export const userVersusStats = pgTable("user_versus_stats", {
   userId: uuid("user_id")
     .references(() => users.id)
     .primaryKey(),

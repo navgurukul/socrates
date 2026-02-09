@@ -1,41 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useVersesStore } from "@/lib/store/verses-store";
-import { toggleReady, startMatch, leaveRoom } from "@/lib/actions/verses";
+import { useVersusStore } from "@/lib/store/versus-store";
+import { toggleReady, startMatch, leaveRoom } from "@/lib/actions/versus";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Copy,
-  Check,
-  LogOut,
-  Play,
-  Users,
-  Clock,
-  Crown,
-} from "lucide-react";
+import { Copy, Check, LogOut, Play, Users, Clock, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface VersesLobbyProps {
+interface VersusLobbyProps {
   onLeave: () => void;
-  channel: ReturnType<typeof import("@/hooks/useVersesChannel").useVersesChannel>;
+  channel: ReturnType<
+    typeof import("@/hooks/useVersusChannel").useVersusChannel
+  >;
 }
 
-export function VersesLobby({ onLeave, channel }: VersesLobbyProps) {
+export function VersusLobby({ onLeave, channel }: VersusLobbyProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const {
-    roomId,
-    joinCode,
-    isHost,
-    timeLimit,
-    participants,
-    currentUserId,
-  } = useVersesStore();
+  const { roomId, joinCode, isHost, timeLimit, participants, currentUserId } =
+    useVersusStore();
 
   const participantList = Object.values(participants);
   const currentParticipant = participants[currentUserId || ""];
@@ -112,7 +100,7 @@ export function VersesLobby({ onLeave, channel }: VersesLobbyProps) {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-white">Verses Lobby</h1>
+            <h1 className="text-2xl font-bold text-white">Versus Lobby</h1>
             <Button
               variant="ghost"
               size="sm"
@@ -182,20 +170,27 @@ export function VersesLobby({ onLeave, channel }: VersesLobbyProps) {
                   key={participant.userId}
                   participant={participant}
                   isCurrentUser={participant.userId === currentUserId}
-                  isHost={participants[Object.keys(participants)[0]]?.userId === participant.userId}
+                  isHost={
+                    participants[Object.keys(participants)[0]]?.userId ===
+                    participant.userId
+                  }
                 />
               ))}
 
               {/* Empty slots */}
-              {Array.from({ length: 4 - participantList.length }).map((_, i) => (
-                <div
-                  key={`empty-${i}`}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-zinc-800 bg-zinc-900/20"
-                >
-                  <div className="w-10 h-10 rounded-full bg-zinc-800/50 border-2 border-zinc-700/50" />
-                  <span className="text-zinc-600 text-sm">Waiting for player...</span>
-                </div>
-              ))}
+              {Array.from({ length: 4 - participantList.length }).map(
+                (_, i) => (
+                  <div
+                    key={`empty-${i}`}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-zinc-800 bg-zinc-900/20"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-zinc-800/50 border-2 border-zinc-700/50" />
+                    <span className="text-zinc-600 text-sm">
+                      Waiting for player...
+                    </span>
+                  </div>
+                )
+              )}
             </div>
           </ScrollArea>
         </Card>
@@ -263,7 +258,11 @@ interface ParticipantRowProps {
   isHost: boolean;
 }
 
-function ParticipantRow({ participant, isCurrentUser, isHost }: ParticipantRowProps) {
+function ParticipantRow({
+  participant,
+  isCurrentUser,
+  isHost,
+}: ParticipantRowProps) {
   const getInitials = () => {
     return participant.username
       .split(" ")
@@ -291,7 +290,9 @@ function ParticipantRow({ participant, isCurrentUser, isHost }: ParticipantRowPr
         />
       ) : (
         <div className="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center">
-          <span className="text-xs font-bold text-zinc-300">{getInitials()}</span>
+          <span className="text-xs font-bold text-zinc-300">
+            {getInitials()}
+          </span>
         </div>
       )}
 
@@ -309,9 +310,7 @@ function ParticipantRow({ participant, isCurrentUser, isHost }: ParticipantRowPr
           {isCurrentUser && (
             <span className="text-xs text-zinc-500">(You)</span>
           )}
-          {isHost && (
-            <Crown className="w-4 h-4 text-yellow-500" />
-          )}
+          {isHost && <Crown className="w-4 h-4 text-yellow-500" />}
         </div>
       </div>
 

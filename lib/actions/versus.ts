@@ -3,10 +3,10 @@
 import { db } from "@/lib/db";
 import {
   users,
-  versesRooms,
-  versesParticipants,
-  versesResults,
-  userVersesStats,
+  versusRooms,
+  versusParticipants,
+  versusResults,
+  userVersusStats,
 } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -16,7 +16,7 @@ import { getAllBattlesMeta } from "@/lib/content/registry";
 // TYPES
 // ============================================
 
-export type VersesRoom = {
+export type VersusRoom = {
   id: string;
   hostUserId: string;
   joinCode: string;
@@ -30,7 +30,7 @@ export type VersesRoom = {
   createdAt: Date | null;
 };
 
-export type VersesParticipant = {
+export type VersusParticipant = {
   roomId: string;
   userId: string;
   username: string;
@@ -41,7 +41,7 @@ export type VersesParticipant = {
   joinedAt: Date | null;
 };
 
-export type VersesRanking = {
+export type VersusRanking = {
   userId: string;
   username: string;
   avatarUrl: string | null;
@@ -79,7 +79,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * Create a new verses room
+ * Create a new versus room
  */
 export async function createRoom(
   trackId?: string,
@@ -100,8 +100,8 @@ export async function createRoom(
     let joinCode = generateJoinCode();
     let attempts = 0;
     while (attempts < 10) {
-      const existing = await db.query.versesRooms.findFirst({
-        where: eq(versesRooms.joinCode, joinCode),
+      const existing = await db.query.versusRooms.findFirst({
+        where: eq(versusRooms.joinCode, joinCode),
       });
       if (!existing) break;
       joinCode = generateJoinCode();
@@ -114,7 +114,7 @@ export async function createRoom(
 
     // Create room
     const [room] = await db
-      .insert(versesRooms)
+      .insert(versusRooms)
       .values({
         hostUserId: user.id,
         joinCode,
@@ -126,7 +126,7 @@ export async function createRoom(
       .returning();
 
     // Add host as first participant
-    await db.insert(versesParticipants).values({
+    await db.insert(versusParticipants).values({
       roomId: room.id,
       userId: user.id,
       status: "joined",
@@ -144,8 +144,8 @@ export async function createRoom(
  */
 export async function joinRoom(joinCode: string): Promise<
   | {
-      room: VersesRoom;
-      participants: VersesParticipant[];
+      room: VersusRoom;
+      participants: VersusParticipant[];
     }
   | { error: string }
 > {
@@ -160,8 +160,8 @@ export async function joinRoom(joinCode: string): Promise<
 
   try {
     // Find room by code
-    const room = await db.query.versesRooms.findFirst({
-      where: eq(versesRooms.joinCode, joinCode.toUpperCase()),
+    const room = await db.query.versusRooms.findFirst({
+      where: eq(versusRooms.joinCode, joinCode.toUpperCase()),
     });
 
     if (!room) {
@@ -173,10 +173,10 @@ export async function joinRoom(joinCode: string): Promise<
     }
 
     // Check if already in room
-    const existingParticipant = await db.query.versesParticipants.findFirst({
+    const existingParticipant = await db.query.versusParticipants.findFirst({
       where: and(
-        eq(versesParticipants.roomId, room.id),
-        eq(versesParticipants.userId, user.id)
+        eq(versusParticipants.roomId, room.id),
+        eq(versusParticipants.userId, user.id)
       ),
     });
 
@@ -185,14 +185,14 @@ export async function joinRoom(joinCode: string): Promise<
       // Check room capacity (max 4 players)
       const participantCount = await db
         .select({ count: sql<number>`count(*)` })
-        .from(versesParticipants)
-        .where(eq(versesParticipants.roomId, room.id));
+        .from(versusParticipants)
+        .where(eq(versusParticipants.roomId, room.id));
 
       if (Number(participantCount[0].count) >= 4) {
         return { error: "Room is full" };
       }
 
-      await db.insert(versesParticipants).values({
+      await db.insert(versusParticipants).values({
         roomId: room.id,
         userId: user.id,
         status: "joined",
@@ -202,27 +202,27 @@ export async function joinRoom(joinCode: string): Promise<
     // Fetch all participants with user info
     const participants = await db
       .select({
-        roomId: versesParticipants.roomId,
-        oduserId: versesParticipants.userId,
+        roomId: versusParticipants.roomId,
+        oduserId: versusParticipants.userId,
         username: users.name,
         avatarUrl: users.avatarUrl,
-        status: versesParticipants.status,
-        challengesSolved: versesParticipants.challengesSolved,
-        totalTimeMs: versesParticipants.totalTimeMs,
-        joinedAt: versesParticipants.joinedAt,
+        status: versusParticipants.status,
+        challengesSolved: versusParticipants.challengesSolved,
+        totalTimeMs: versusParticipants.totalTimeMs,
+        joinedAt: versusParticipants.joinedAt,
       })
-      .from(versesParticipants)
-      .innerJoin(users, eq(versesParticipants.userId, users.id))
-      .where(eq(versesParticipants.roomId, room.id));
+      .from(versusParticipants)
+      .innerJoin(users, eq(versusParticipants.userId, users.id))
+      .where(eq(versusParticipants.roomId, room.id));
 
     return {
-      room: room as VersesRoom,
+      room: room as VersusRoom,
       participants: participants.map((p) => ({
         roomId: p.roomId,
         userId: p.oduserId,
         username: p.username || "Anonymous",
         avatarUrl: p.avatarUrl,
-        status: p.status as VersesParticipant["status"],
+        status: p.status as VersusParticipant["status"],
         challengesSolved: p.challengesSolved || 0,
         totalTimeMs: Number(p.totalTimeMs || 0),
         joinedAt: p.joinedAt,
@@ -239,8 +239,8 @@ export async function joinRoom(joinCode: string): Promise<
  */
 export async function getRoom(roomId: string): Promise<
   | {
-      room: VersesRoom;
-      participants: VersesParticipant[];
+      room: VersusRoom;
+      participants: VersusParticipant[];
     }
   | { error: string }
 > {
@@ -254,8 +254,8 @@ export async function getRoom(roomId: string): Promise<
   }
 
   try {
-    const room = await db.query.versesRooms.findFirst({
-      where: eq(versesRooms.id, roomId),
+    const room = await db.query.versusRooms.findFirst({
+      where: eq(versusRooms.id, roomId),
     });
 
     if (!room) {
@@ -265,27 +265,27 @@ export async function getRoom(roomId: string): Promise<
     // Fetch all participants with user info
     const participants = await db
       .select({
-        roomId: versesParticipants.roomId,
-        oduserId: versesParticipants.userId,
+        roomId: versusParticipants.roomId,
+        oduserId: versusParticipants.userId,
         username: users.name,
         avatarUrl: users.avatarUrl,
-        status: versesParticipants.status,
-        challengesSolved: versesParticipants.challengesSolved,
-        totalTimeMs: versesParticipants.totalTimeMs,
-        joinedAt: versesParticipants.joinedAt,
+        status: versusParticipants.status,
+        challengesSolved: versusParticipants.challengesSolved,
+        totalTimeMs: versusParticipants.totalTimeMs,
+        joinedAt: versusParticipants.joinedAt,
       })
-      .from(versesParticipants)
-      .innerJoin(users, eq(versesParticipants.userId, users.id))
-      .where(eq(versesParticipants.roomId, room.id));
+      .from(versusParticipants)
+      .innerJoin(users, eq(versusParticipants.userId, users.id))
+      .where(eq(versusParticipants.roomId, room.id));
 
     return {
-      room: room as VersesRoom,
+      room: room as VersusRoom,
       participants: participants.map((p) => ({
         roomId: p.roomId,
         userId: p.oduserId,
         username: p.username || "Anonymous",
         avatarUrl: p.avatarUrl,
-        status: p.status as VersesParticipant["status"],
+        status: p.status as VersusParticipant["status"],
         challengesSolved: p.challengesSolved || 0,
         totalTimeMs: Number(p.totalTimeMs || 0),
         joinedAt: p.joinedAt,
@@ -315,37 +315,37 @@ export async function leaveRoom(
   try {
     // Remove participant
     await db
-      .delete(versesParticipants)
+      .delete(versusParticipants)
       .where(
         and(
-          eq(versesParticipants.roomId, roomId),
-          eq(versesParticipants.userId, user.id)
+          eq(versusParticipants.roomId, roomId),
+          eq(versusParticipants.userId, user.id)
         )
       );
 
     // Check if room is now empty or needs new host
-    const room = await db.query.versesRooms.findFirst({
-      where: eq(versesRooms.id, roomId),
+    const room = await db.query.versusRooms.findFirst({
+      where: eq(versusRooms.id, roomId),
     });
 
     if (room && room.hostUserId === user.id) {
       // Find oldest remaining participant to make host
       const remainingParticipants = await db
         .select()
-        .from(versesParticipants)
-        .where(eq(versesParticipants.roomId, roomId))
-        .orderBy(versesParticipants.joinedAt)
+        .from(versusParticipants)
+        .where(eq(versusParticipants.roomId, roomId))
+        .orderBy(versusParticipants.joinedAt)
         .limit(1);
 
       if (remainingParticipants.length > 0) {
         // Transfer host
         await db
-          .update(versesRooms)
+          .update(versusRooms)
           .set({ hostUserId: remainingParticipants[0].userId })
-          .where(eq(versesRooms.id, roomId));
+          .where(eq(versusRooms.id, roomId));
       } else {
         // Delete empty room
-        await db.delete(versesRooms).where(eq(versesRooms.id, roomId));
+        await db.delete(versusRooms).where(eq(versusRooms.id, roomId));
       }
     }
 
@@ -372,10 +372,10 @@ export async function toggleReady(
   }
 
   try {
-    const participant = await db.query.versesParticipants.findFirst({
+    const participant = await db.query.versusParticipants.findFirst({
       where: and(
-        eq(versesParticipants.roomId, roomId),
-        eq(versesParticipants.userId, user.id)
+        eq(versusParticipants.roomId, roomId),
+        eq(versusParticipants.userId, user.id)
       ),
     });
 
@@ -386,12 +386,12 @@ export async function toggleReady(
     const newStatus = participant.status === "ready" ? "joined" : "ready";
 
     await db
-      .update(versesParticipants)
+      .update(versusParticipants)
       .set({ status: newStatus })
       .where(
         and(
-          eq(versesParticipants.roomId, roomId),
-          eq(versesParticipants.userId, user.id)
+          eq(versusParticipants.roomId, roomId),
+          eq(versusParticipants.userId, user.id)
         )
       );
 
@@ -422,8 +422,8 @@ export async function startMatch(
   }
 
   try {
-    const room = await db.query.versesRooms.findFirst({
-      where: eq(versesRooms.id, roomId),
+    const room = await db.query.versusRooms.findFirst({
+      where: eq(versusRooms.id, roomId),
     });
 
     if (!room) {
@@ -439,8 +439,8 @@ export async function startMatch(
     }
 
     // Check all participants are ready
-    const participants = await db.query.versesParticipants.findMany({
-      where: eq(versesParticipants.roomId, roomId),
+    const participants = await db.query.versusParticipants.findMany({
+      where: eq(versusParticipants.roomId, roomId),
     });
 
     const allReady = participants.every(
@@ -471,19 +471,19 @@ export async function startMatch(
 
     // Update room status
     await db
-      .update(versesRooms)
+      .update(versusRooms)
       .set({
         status: "in_progress",
         challengePool,
         startedAt: new Date(),
       })
-      .where(eq(versesRooms.id, roomId));
+      .where(eq(versusRooms.id, roomId));
 
     // Update all participants to playing
     await db
-      .update(versesParticipants)
+      .update(versusParticipants)
       .set({ status: "playing" })
-      .where(eq(versesParticipants.roomId, roomId));
+      .where(eq(versusParticipants.roomId, roomId));
 
     return { challengePool };
   } catch (error) {
@@ -499,7 +499,7 @@ export async function submitChallengeResult(
   roomId: string,
   challengeId: string,
   completionTimeMs: number
-): Promise<{ rankings: VersesRanking[] } | { error: string }> {
+): Promise<{ rankings: VersusRanking[] } | { error: string }> {
   const supabase = createClient();
   const {
     data: { user },
@@ -510,8 +510,8 @@ export async function submitChallengeResult(
   }
 
   try {
-    const room = await db.query.versesRooms.findFirst({
-      where: eq(versesRooms.id, roomId),
+    const room = await db.query.versusRooms.findFirst({
+      where: eq(versusRooms.id, roomId),
     });
 
     if (!room || room.status !== "in_progress") {
@@ -525,15 +525,15 @@ export async function submitChallengeResult(
 
     // Update participant stats
     await db
-      .update(versesParticipants)
+      .update(versusParticipants)
       .set({
-        challengesSolved: sql`${versesParticipants.challengesSolved} + 1`,
-        totalTimeMs: sql`${versesParticipants.totalTimeMs} + ${completionTimeMs}`,
+        challengesSolved: sql`${versusParticipants.challengesSolved} + 1`,
+        totalTimeMs: sql`${versusParticipants.totalTimeMs} + ${completionTimeMs}`,
       })
       .where(
         and(
-          eq(versesParticipants.roomId, roomId),
-          eq(versesParticipants.userId, user.id)
+          eq(versusParticipants.roomId, roomId),
+          eq(versusParticipants.userId, user.id)
         )
       );
 
@@ -549,21 +549,21 @@ export async function submitChallengeResult(
 /**
  * Calculate current rankings for a room
  */
-async function calculateRankings(roomId: string): Promise<VersesRanking[]> {
+async function calculateRankings(roomId: string): Promise<VersusRanking[]> {
   const participants = await db
     .select({
-      oduserId: versesParticipants.userId,
+      oduserId: versusParticipants.userId,
       username: users.name,
       avatarUrl: users.avatarUrl,
-      solved: versesParticipants.challengesSolved,
-      totalTimeMs: versesParticipants.totalTimeMs,
+      solved: versusParticipants.challengesSolved,
+      totalTimeMs: versusParticipants.totalTimeMs,
     })
-    .from(versesParticipants)
-    .innerJoin(users, eq(versesParticipants.userId, users.id))
-    .where(eq(versesParticipants.roomId, roomId))
+    .from(versusParticipants)
+    .innerJoin(users, eq(versusParticipants.userId, users.id))
+    .where(eq(versusParticipants.roomId, roomId))
     .orderBy(
-      desc(versesParticipants.challengesSolved),
-      versesParticipants.totalTimeMs
+      desc(versusParticipants.challengesSolved),
+      versusParticipants.totalTimeMs
     );
 
   return participants.map((p, index) => ({
@@ -594,12 +594,12 @@ export async function submitMatch(
   try {
     // Mark participant as finished
     await db
-      .update(versesParticipants)
+      .update(versusParticipants)
       .set({ status: "finished" })
       .where(
         and(
-          eq(versesParticipants.roomId, roomId),
-          eq(versesParticipants.userId, user.id)
+          eq(versusParticipants.roomId, roomId),
+          eq(versusParticipants.userId, user.id)
         )
       );
 
@@ -615,7 +615,7 @@ export async function submitMatch(
  */
 export async function finishMatch(
   roomId: string
-): Promise<{ finalResults: VersesRanking[] } | { error: string }> {
+): Promise<{ finalResults: VersusRanking[] } | { error: string }> {
   const supabase = createClient();
   const {
     data: { user },
@@ -626,8 +626,8 @@ export async function finishMatch(
   }
 
   try {
-    const room = await db.query.versesRooms.findFirst({
-      where: eq(versesRooms.id, roomId),
+    const room = await db.query.versusRooms.findFirst({
+      where: eq(versusRooms.id, roomId),
     });
 
     if (!room) {
@@ -638,17 +638,17 @@ export async function finishMatch(
       // Already finished, just return results
       const results = await db
         .select({
-          oduserId: versesResults.userId,
+          oduserId: versusResults.userId,
           username: users.name,
           avatarUrl: users.avatarUrl,
-          solved: versesResults.challengesSolved,
-          totalTimeMs: versesResults.totalTimeMs,
-          rank: versesResults.rank,
+          solved: versusResults.challengesSolved,
+          totalTimeMs: versusResults.totalTimeMs,
+          rank: versusResults.rank,
         })
-        .from(versesResults)
-        .innerJoin(users, eq(versesResults.userId, users.id))
-        .where(eq(versesResults.roomId, roomId))
-        .orderBy(versesResults.rank);
+        .from(versusResults)
+        .innerJoin(users, eq(versusResults.userId, users.id))
+        .where(eq(versusResults.roomId, roomId))
+        .orderBy(versusResults.rank);
 
       return {
         finalResults: results.map((r) => ({
@@ -667,7 +667,7 @@ export async function finishMatch(
 
     // Store results
     for (const ranking of rankings) {
-      await db.insert(versesResults).values({
+      await db.insert(versusResults).values({
         roomId,
         userId: ranking.userId,
         rank: ranking.rank,
@@ -677,24 +677,24 @@ export async function finishMatch(
 
       // Update user stats
       const isWinner = ranking.rank === 1;
-      const existingStats = await db.query.userVersesStats.findFirst({
-        where: eq(userVersesStats.userId, ranking.userId),
+      const existingStats = await db.query.userVersusStats.findFirst({
+        where: eq(userVersusStats.userId, ranking.userId),
       });
 
       if (existingStats) {
         await db
-          .update(userVersesStats)
+          .update(userVersusStats)
           .set({
             totalWins: isWinner
-              ? sql`${userVersesStats.totalWins} + 1`
-              : userVersesStats.totalWins,
-            totalMatches: sql`${userVersesStats.totalMatches} + 1`,
-            totalChallengesSolved: sql`${userVersesStats.totalChallengesSolved} + ${ranking.solved}`,
+              ? sql`${userVersusStats.totalWins} + 1`
+              : userVersusStats.totalWins,
+            totalMatches: sql`${userVersusStats.totalMatches} + 1`,
+            totalChallengesSolved: sql`${userVersusStats.totalChallengesSolved} + ${ranking.solved}`,
             updatedAt: new Date(),
           })
-          .where(eq(userVersesStats.userId, ranking.userId));
+          .where(eq(userVersusStats.userId, ranking.userId));
       } else {
-        await db.insert(userVersesStats).values({
+        await db.insert(userVersusStats).values({
           userId: ranking.userId,
           totalWins: isWinner ? 1 : 0,
           totalMatches: 1,
@@ -705,18 +705,18 @@ export async function finishMatch(
 
     // Mark room as finished
     await db
-      .update(versesRooms)
+      .update(versusRooms)
       .set({
         status: "finished",
         finishedAt: new Date(),
       })
-      .where(eq(versesRooms.id, roomId));
+      .where(eq(versusRooms.id, roomId));
 
     // Update all participants to finished
     await db
-      .update(versesParticipants)
+      .update(versusParticipants)
       .set({ status: "finished" })
-      .where(eq(versesParticipants.roomId, roomId));
+      .where(eq(versusParticipants.roomId, roomId));
 
     return { finalResults: rankings };
   } catch (error) {
@@ -729,7 +729,7 @@ export async function finishMatch(
 // LEADERBOARD
 // ============================================
 
-export type VersesLeaderboardEntry = {
+export type VersusLeaderboardEntry = {
   userId: string;
   username: string;
   avatarUrl: string | null;
@@ -738,17 +738,17 @@ export type VersesLeaderboardEntry = {
 };
 
 /**
- * Get verses leaderboard
+ * Get versus leaderboard
  */
-export async function getVersesLeaderboard(
+export async function getVersusLeaderboard(
   sortBy: "wins" | "challenges" = "wins",
   limit = 50
-): Promise<VersesLeaderboardEntry[]> {
+): Promise<VersusLeaderboardEntry[]> {
   try {
     const orderColumn =
       sortBy === "wins"
-        ? userVersesStats.totalWins
-        : userVersesStats.totalChallengesSolved;
+        ? userVersusStats.totalWins
+        : userVersusStats.totalChallengesSolved;
 
     const results = await db
       .select({
@@ -757,8 +757,8 @@ export async function getVersesLeaderboard(
         avatarUrl: users.avatarUrl,
         value: orderColumn,
       })
-      .from(userVersesStats)
-      .innerJoin(users, eq(userVersesStats.userId, users.id))
+      .from(userVersusStats)
+      .innerJoin(users, eq(userVersusStats.userId, users.id))
       .orderBy(desc(orderColumn))
       .limit(limit);
 

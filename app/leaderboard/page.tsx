@@ -5,7 +5,7 @@ import {
   getStreakLeaderboard,
   getSolvedLeaderboard,
 } from "@/lib/actions/leaderboard";
-import { getVersesLeaderboard } from "@/lib/actions/verses";
+import { getVersusLeaderboard } from "@/lib/actions/versus";
 import { PageContainer, PageNavSection, PageHeader } from "@/components/common";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Trophy, Flame, Swords } from "lucide-react";
@@ -21,10 +21,10 @@ export const dynamic = "force-dynamic";
 
 async function LeaderboardContent() {
   // Fetch leaderboard data in parallel
-  const [streakData, solvedData, versesData] = await Promise.all([
+  const [streakData, solvedData, versusData] = await Promise.all([
     getStreakLeaderboard(),
     getSolvedLeaderboard(),
-    getVersesLeaderboard("wins"),
+    getVersusLeaderboard("wins"),
   ]);
 
   // Get current user ID for highlighting
@@ -47,9 +47,9 @@ async function LeaderboardContent() {
             <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
             Top Solvers
           </TabsTrigger>
-          <TabsTrigger value="verses">
+          <TabsTrigger value="versus">
             <Swords className="w-4 h-4 mr-2 text-purple-500" />
-            Verses Champions
+            Versus Champions
           </TabsTrigger>
         </TabsList>
       </div>
@@ -94,13 +94,13 @@ async function LeaderboardContent() {
         )}
       </TabsContent>
 
-      {/* Verses Champions Leaderboard */}
+      {/* Versus Champions Leaderboard */}
       <TabsContent
-        value="verses"
+        value="versus"
         className="space-y-3 animate-in fade-in slide-in-from-bottom-2"
       >
-        {versesData.length > 0 ? (
-          versesData.map((entry) => (
+        {versusData.length > 0 ? (
+          versusData.map((entry) => (
             <LeaderboardRow
               key={entry.userId}
               entry={entry}
@@ -109,7 +109,7 @@ async function LeaderboardContent() {
           ))
         ) : (
           <div className="text-center py-12 text-zinc-500">
-            No Verses matches played yet. Challenge your friends!
+            No Versus matches played yet. Challenge your friends!
           </div>
         )}
       </TabsContent>

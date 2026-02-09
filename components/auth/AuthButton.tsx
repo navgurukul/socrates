@@ -23,7 +23,7 @@ export function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-2">
-        <Link href="/verses">
+        <Link href="/versus">
           <Button variant="link" className="text-zinc-400 hover:text-zinc-50">
             <Swords className="w-4 h-4" />
           </Button>

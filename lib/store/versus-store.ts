@@ -15,7 +15,7 @@ export type RoomStatus = "lobby" | "in_progress" | "finished";
 
 export type ParticipantStatus = "joined" | "ready" | "playing" | "finished";
 
-export interface VersesParticipant {
+export interface VersusParticipant {
   userId: string;
   username: string;
   avatarUrl: string | null;
@@ -24,7 +24,7 @@ export interface VersesParticipant {
   totalTimeMs: number;
 }
 
-export interface VersesRanking {
+export interface VersusRanking {
   rank: number;
   userId: string;
   username: string;
@@ -38,7 +38,7 @@ export interface VersesRanking {
 // STATE INTERFACE
 // ============================================
 
-interface VersesState {
+interface VersusState {
   // Room
   roomId: string | null;
   joinCode: string | null;
@@ -59,10 +59,10 @@ interface VersesState {
   currentBattleStartTime: number | null;
 
   // Live Leaderboard
-  rankings: VersesRanking[];
+  rankings: VersusRanking[];
 
   // Participants
-  participants: Record<string, VersesParticipant>;
+  participants: Record<string, VersusParticipant>;
   currentUserId: string | null;
 }
 
@@ -70,7 +70,7 @@ interface VersesState {
 // STORE INTERFACE
 // ============================================
 
-interface VersesStore extends VersesState {
+interface VersusStore extends VersusState {
   // Room actions
   setRoom: (data: {
     roomId: string;
@@ -82,10 +82,10 @@ interface VersesStore extends VersesState {
   setStatus: (status: RoomStatus) => void;
 
   // Participant actions
-  setParticipants: (participants: Record<string, VersesParticipant>) => void;
+  setParticipants: (participants: Record<string, VersusParticipant>) => void;
   updateParticipant: (
     userId: string,
-    updates: Partial<VersesParticipant>
+    updates: Partial<VersusParticipant>
   ) => void;
   removeParticipant: (userId: string) => void;
 
@@ -99,7 +99,7 @@ interface VersesStore extends VersesState {
   markSolved: (battleId: string, timeMs: number) => void;
 
   // Rankings
-  setRankings: (rankings: VersesRanking[]) => void;
+  setRankings: (rankings: VersusRanking[]) => void;
 
   // Reset
   reset: () => void;
@@ -109,7 +109,7 @@ interface VersesStore extends VersesState {
 // INITIAL STATE
 // ============================================
 
-const initialState: VersesState = {
+const initialState: VersusState = {
   roomId: null,
   joinCode: null,
   isHost: false,
@@ -135,7 +135,7 @@ const initialState: VersesState = {
 // STORE
 // ============================================
 
-export const useVersesStore = create<VersesStore>((set, get) => ({
+export const useVersusStore = create<VersusStore>((set, get) => ({
   ...initialState,
 
   // Room actions

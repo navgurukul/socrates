@@ -3,31 +3,31 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  useVersesStore,
-  VersesParticipant as StoreParticipant,
-} from "@/lib/store/verses-store";
-import { useVersesChannel } from "@/hooks/useVersesChannel";
-import { VersesLobby } from "./VersesLobby";
-import { VersesArena } from "./VersesArena";
-import { VersesResults } from "./VersesResults";
+  useVersusStore,
+  VersusParticipant as StoreParticipant,
+} from "@/lib/store/versus-store";
+import { useVersusChannel } from "@/hooks/useVersusChannel";
+import { VersusLobby } from "./VersusLobby";
+import { VersusArena } from "./VersusArena";
+import { VersusResults } from "./VersusResults";
 import type {
-  VersesRoom as VersesRoomType,
-  VersesParticipant,
-} from "@/lib/actions/verses";
+  VersusRoom as VersusRoomType,
+  VersusParticipant,
+} from "@/lib/actions/versus";
 
-interface VersesRoomProps {
-  initialRoom: VersesRoomType;
-  initialParticipants: VersesParticipant[];
+interface VersusRoomProps {
+  initialRoom: VersusRoomType;
+  initialParticipants: VersusParticipant[];
   currentUserId: string;
   isHost: boolean;
 }
 
-export function VersesRoom({
+export function VersusRoom({
   initialRoom,
   initialParticipants,
   currentUserId,
   isHost,
-}: VersesRoomProps) {
+}: VersusRoomProps) {
   const router = useRouter();
   const initializedRef = useRef(false);
 
@@ -40,7 +40,7 @@ export function VersesRoom({
     status,
     roomId,
     reset,
-  } = useVersesStore();
+  } = useVersusStore();
 
   // Initialize store with server data
   useEffect(() => {
@@ -97,12 +97,12 @@ export function VersesRoom({
   ]);
 
   // Set up realtime channel
-  const channel = useVersesChannel(roomId);
+  const channel = useVersusChannel(roomId);
 
   // Handle leaving room
   const handleLeaveRoom = () => {
     reset();
-    router.push("/verses");
+    router.push("/versus");
   };
 
   // Handle match end (transition to results)
@@ -112,20 +112,20 @@ export function VersesRoom({
 
   // Render based on status
   if (status === "lobby") {
-    return <VersesLobby onLeave={handleLeaveRoom} channel={channel} />;
+    return <VersusLobby onLeave={handleLeaveRoom} channel={channel} />;
   }
 
   if (status === "in_progress") {
-    return <VersesArena channel={channel} onMatchEnd={handleMatchEnd} />;
+    return <VersusArena channel={channel} onMatchEnd={handleMatchEnd} />;
   }
 
   if (status === "finished") {
     return (
-      <VersesResults
+      <VersusResults
         onLeave={handleLeaveRoom}
         onPlayAgain={() => {
           reset();
-          router.push("/verses");
+          router.push("/versus");
         }}
       />
     );

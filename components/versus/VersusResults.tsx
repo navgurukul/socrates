@@ -1,6 +1,6 @@
 "use client";
 
-import { useVersesStore } from "@/lib/store/verses-store";
+import { useVersusStore } from "@/lib/store/versus-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,14 +16,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface VersesResultsProps {
+interface VersusResultsProps {
   onLeave: () => void;
   onPlayAgain: () => void;
 }
 
-export function VersesResults({ onLeave, onPlayAgain }: VersesResultsProps) {
+export function VersusResults({ onLeave, onPlayAgain }: VersusResultsProps) {
   const { rankings, solvedCount, totalTimeMs, currentUserId, challengePool } =
-    useVersesStore();
+    useVersusStore();
 
   // Format time as mm:ss.ms
   const formatTime = (ms: number) => {

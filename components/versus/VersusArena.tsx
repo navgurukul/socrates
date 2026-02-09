@@ -1,25 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { useVersesStore } from "@/lib/store/verses-store";
-import { submitChallengeResult, finishMatch } from "@/lib/actions/verses";
+import { useVersusStore } from "@/lib/store/versus-store";
+import { submitChallengeResult, finishMatch } from "@/lib/actions/versus";
 import { BattleProvider } from "@/contexts/BattleContext";
 import { BattleArenaContent } from "@/components/arena/BattleArenaContent";
-import { VersesHeader } from "./VersesHeader";
-import { VersesBattleList } from "./VersesBattleList";
-import { VersesLiveLeaderboard } from "./VersesLiveLeaderboard";
+import { VersusHeader } from "./VersusHeader";
+import { VersusBattleList } from "./VersusBattleList";
+import { VersusLiveLeaderboard } from "./VersusLiveLeaderboard";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
 
-interface VersesArenaProps {
-  channel: ReturnType<typeof import("@/hooks/useVersesChannel").useVersesChannel>;
+interface VersusArenaProps {
+  channel: ReturnType<
+    typeof import("@/hooks/useVersusChannel").useVersusChannel
+  >;
   onMatchEnd: () => void;
 }
 
-export function VersesArena({ channel, onMatchEnd }: VersesArenaProps) {
+export function VersusArena({ channel, onMatchEnd }: VersusArenaProps) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasEndedRef = useRef(false);
 
@@ -39,7 +41,7 @@ export function VersesArena({ channel, onMatchEnd }: VersesArenaProps) {
     markSolved,
     setRankings,
     setStatus,
-  } = useVersesStore();
+  } = useVersusStore();
 
   // Timer countdown
   useEffect(() => {
@@ -164,7 +166,7 @@ export function VersesArena({ channel, onMatchEnd }: VersesArenaProps) {
 
   return (
     <div className="h-screen flex flex-col bg-zinc-950">
-      <VersesHeader
+      <VersusHeader
         remainingSeconds={remainingSeconds}
         solvedCount={solvedCount}
         totalBattles={challengePool.length}
@@ -174,7 +176,7 @@ export function VersesArena({ channel, onMatchEnd }: VersesArenaProps) {
       <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
         {/* Battle List Sidebar */}
         <ResizablePanel defaultSize={15} minSize={12} maxSize={20}>
-          <VersesBattleList />
+          <VersusBattleList />
         </ResizablePanel>
 
         <ResizableHandle className="bg-zinc-800" />
@@ -183,9 +185,9 @@ export function VersesArena({ channel, onMatchEnd }: VersesArenaProps) {
         <ResizablePanel defaultSize={65} minSize={50}>
           <BattleProvider
             challengeId={currentBattleId}
-            source="verses"
-            isVersesMode={true}
-            onVersesComplete={handleChallengeSolved}
+            source="versus"
+            isVersusMode={true}
+            onVersusComplete={handleChallengeSolved}
           >
             <div className="h-full [&>main]:h-full [&>main>header]:hidden">
               <BattleArenaContent />
@@ -197,7 +199,7 @@ export function VersesArena({ channel, onMatchEnd }: VersesArenaProps) {
 
         {/* Live Leaderboard */}
         <ResizablePanel defaultSize={20} minSize={15} maxSize={25}>
-          <VersesLiveLeaderboard />
+          <VersusLiveLeaderboard />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

@@ -1,12 +1,12 @@
 "use client";
 
-import { useVersesStore } from "@/lib/store/verses-store";
+import { useVersusStore } from "@/lib/store/versus-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Crown, Medal } from "lucide-react";
 
-export function VersesLiveLeaderboard() {
-  const { rankings, currentUserId } = useVersesStore();
+export function VersusLiveLeaderboard() {
+  const { rankings, currentUserId } = useVersusStore();
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);

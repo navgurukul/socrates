@@ -26,17 +26,17 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Plus, Users } from "lucide-react";
-import { createRoom, joinRoom } from "@/lib/actions/verses";
+import { createRoom, joinRoom } from "@/lib/actions/versus";
 import { getAllTracks } from "@/lib/content/registry";
 import { getArcsByTrack } from "@/lib/content/arcs";
 
-interface VersesLandingContentProps {
+interface VersusLandingContentProps {
   isAuthenticated: boolean;
 }
 
-export function VersesLandingContent({
+export function VersusLandingContent({
   isAuthenticated,
-}: VersesLandingContentProps) {
+}: VersusLandingContentProps) {
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -71,7 +71,7 @@ export function VersesLandingContent({
       return;
     }
 
-    router.push(`/verses/room/${result.roomId}`);
+    router.push(`/versus/room/${result.roomId}`);
   };
 
   const handleJoinRoom = async () => {
@@ -96,7 +96,7 @@ export function VersesLandingContent({
       return;
     }
 
-    router.push(`/verses/room/${result.room.id}`);
+    router.push(`/versus/room/${result.room.id}`);
   };
 
   return (

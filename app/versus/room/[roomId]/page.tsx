@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getRoom } from "@/lib/actions/verses";
-import { VersesRoom } from "@/components/verses/VersesRoom";
+import { getRoom } from "@/lib/actions/versus";
+import { VersusRoom } from "@/components/versus/VersusRoom";
 
 interface Props {
   params: Promise<{ roomId: string }>;
 }
 
-export default async function VersesRoomPage({ params }: Props) {
+export default async function VersusRoomPage({ params }: Props) {
   const { roomId } = await params;
   const supabase = createClient();
   const {
@@ -15,13 +15,13 @@ export default async function VersesRoomPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/verses");
+    redirect("/versus");
   }
 
   const result = await getRoom(roomId);
 
   if ("error" in result) {
-    redirect("/verses");
+    redirect("/versus");
   }
 
   const { room, participants } = result;
@@ -29,13 +29,13 @@ export default async function VersesRoomPage({ params }: Props) {
   // Check if user is a participant
   const isParticipant = participants.some((p) => p.userId === user.id);
   if (!isParticipant) {
-    redirect("/verses");
+    redirect("/versus");
   }
 
   const isHost = room.hostUserId === user.id;
 
   return (
-    <VersesRoom
+    <VersusRoom
       initialRoom={room}
       initialParticipants={participants}
       currentUserId={user.id}

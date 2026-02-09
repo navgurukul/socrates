@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useVersesStore, VersesRanking } from "@/lib/store/verses-store";
+import { useVersusStore, VersusRanking } from "@/lib/store/versus-store";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 // ============================================
@@ -53,14 +53,14 @@ interface TimeSyncEvent {
 }
 
 interface MatchFinishedEvent {
-  results: VersesRanking[];
+  results: VersusRanking[];
 }
 
 // ============================================
 // HOOK
 // ============================================
 
-export function useVersesChannel(roomId: string | null) {
+export function useVersusChannel(roomId: string | null) {
   const supabase = createClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -74,7 +74,7 @@ export function useVersesChannel(roomId: string | null) {
     setRankings,
     currentUserId,
     participants,
-  } = useVersesStore();
+  } = useVersusStore();
 
   // Broadcast event to channel
   const broadcast = useCallback((event: string, payload: unknown) => {
@@ -91,7 +91,7 @@ export function useVersesChannel(roomId: string | null) {
   useEffect(() => {
     if (!roomId) return;
 
-    const channel = supabase.channel(`verses:${roomId}`, {
+    const channel = supabase.channel(`versus:${roomId}`, {
       config: {
         broadcast: { self: true },
       },
@@ -233,7 +233,7 @@ export function useVersesChannel(roomId: string | null) {
   );
 
   const broadcastMatchFinished = useCallback(
-    (results: VersesRanking[]) => {
+    (results: VersusRanking[]) => {
       broadcast("match_finished", { results });
     },
     [broadcast]
