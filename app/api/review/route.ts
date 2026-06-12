@@ -1,13 +1,34 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { models } from "@/lib/ai/models";
+import { createClient } from "@/lib/supabase/server";
+
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
+    // Require an authenticated user — gates cost/abuse of the AI endpoint
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { code, challengeId } = await req.json();
 
+    // Validate input shape before iterating
+    if (typeof code !== "object" || code === null || Array.isArray(code)) {
+      return Response.json(
+        { error: "Invalid request: code must be a file map" },
+        { status: 400 }
+      );
+    }
+
     // Filter for relevant source files to save tokens/noise
-    const codeContext = Object.entries(code)
+    const codeContext = Object.entries(code as Record<string, string>)
       .filter(
         ([path]) => path.startsWith("src/") && !path.endsWith(".test.tsx")
       )

@@ -64,17 +64,15 @@ export function useVersusChannel(roomId: string | null) {
   const supabase = createClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const {
-    setStatus,
-    setParticipants,
-    updateParticipant,
-    removeParticipant,
-    startMatch,
-    setRemainingSeconds,
-    setRankings,
-    currentUserId,
-    participants,
-  } = useVersusStore();
+  // Select actions individually — these are stable references in Zustand, so
+  // the subscribe effect below isn't re-run on every state change (e.g. the
+  // per-second time tick), which previously tore down and recreated the channel.
+  const setStatus = useVersusStore((s) => s.setStatus);
+  const updateParticipant = useVersusStore((s) => s.updateParticipant);
+  const removeParticipant = useVersusStore((s) => s.removeParticipant);
+  const startMatch = useVersusStore((s) => s.startMatch);
+  const setRemainingSeconds = useVersusStore((s) => s.setRemainingSeconds);
+  const setRankings = useVersusStore((s) => s.setRankings);
 
   // Broadcast event to channel
   const broadcast = useCallback((event: string, payload: unknown) => {
@@ -140,6 +138,9 @@ export function useVersusChannel(roomId: string | null) {
     // Handle leaderboard update
     channel.on("broadcast", { event: "leaderboard_update" }, ({ payload }) => {
       const event = payload as LeaderboardUpdateEvent;
+      // Read currentUserId live so it isn't captured as a stale closure and
+      // doesn't need to be an effect dependency.
+      const currentUserId = useVersusStore.getState().currentUserId;
       const rankingsWithCurrentUser = event.rankings.map((r) => ({
         ...r,
         isCurrentUser: r.userId === currentUserId,
@@ -172,9 +173,7 @@ export function useVersusChannel(roomId: string | null) {
   }, [
     roomId,
     supabase,
-    currentUserId,
     setStatus,
-    setParticipants,
     updateParticipant,
     removeParticipant,
     startMatch,

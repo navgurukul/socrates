@@ -9,7 +9,7 @@ interface Props {
 
 export default async function VersusRoomPage({ params }: Props) {
   const { roomId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

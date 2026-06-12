@@ -10,6 +10,7 @@ import {
   date,
   primaryKey,
   bigint,
+  unique,
 } from "drizzle-orm/pg-core";
 
 // 1. Users Table
@@ -24,21 +25,31 @@ export const users = pgTable("users", {
 
 // 2. Challenge Progress
 // This stores "Memory" - how they solved it and what the AI said.
-export const progress = pgTable("challenge_progress", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .references(() => users.id)
-    .notNull(),
-  challengeId: text("challenge_id").notNull(), // e.g. "shopping-cart-bug"
-  status: text("status").$type<"completed" | "in_progress">().notNull(),
+export const progress = pgTable(
+  "challenge_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    challengeId: text("challenge_id").notNull(), // e.g. "shopping-cart-bug"
+    status: text("status").$type<"completed" | "in_progress">().notNull(),
 
-  // The code they wrote (Crucial for AI analysis later)
-  solutionCode: jsonb("solution_code"),
+    // The code they wrote (Crucial for AI analysis later)
+    solutionCode: jsonb("solution_code"),
 
-  // Metrics for "Senior Dev" scoring
-  attempts: integer("attempts").default(0),
-  completedAt: timestamp("completed_at"),
-});
+    // Metrics for "Senior Dev" scoring
+    attempts: integer("attempts").default(0),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => ({
+    // One progress row per (user, challenge) — enables upsert + correct leaderboard counts
+    userChallengeUnique: unique("uniq_progress_user_challenge").on(
+      table.userId,
+      table.challengeId
+    ),
+  })
+);
 
 // 3. AI Memories (Learning Insights from Debug Traces)
 // We store summaries of their coding patterns and learning moments
@@ -212,6 +223,8 @@ export const versusParticipants = pgTable(
       .default("joined"),
     currentChallengeIdx: integer("current_challenge_idx").default(0),
     challengesSolved: integer("challenges_solved").default(0),
+    // IDs already credited to this player — prevents double-counting a re-submit
+    solvedChallenges: jsonb("solved_challenges").$type<string[]>().default([]),
     totalTimeMs: bigint("total_time_ms", { mode: "number" }).default(0),
     joinedAt: timestamp("joined_at").defaultNow(),
   },
@@ -241,6 +254,11 @@ export const versusResults = pgTable(
   (table) => ({
     roomIdx: index("idx_versus_results_room").on(table.roomId),
     userIdx: index("idx_versus_results_user").on(table.userId),
+    // One result row per (room, user) — makes finishMatch idempotent
+    roomUserUnique: unique("uniq_versus_results_room_user").on(
+      table.roomId,
+      table.userId
+    ),
   })
 );
 

@@ -261,17 +261,17 @@ test('enables submit button when form is valid', () => {
   render(<RegistrationForm />);
 
   const emailInput = screen.getByLabelText(/email/i);
-  const passwordInput = screen.getByLabelText(/password/i);
+  const passwordInput = screen.getByLabelText(/^password/i);
   const confirmInput = screen.getByLabelText(/confirm password/i);
-  const submitButton = screen.getByTestId('submit-btn');
+  const submitButton = screen.getByTestId('submit-btn') as HTMLButtonElement;
 
-  expect(submitButton).toBeDisabled();
+  expect(submitButton.disabled).toBe(true);
 
   fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
   fireEvent.change(passwordInput, { target: { value: 'password123' } });
   fireEvent.change(confirmInput, { target: { value: 'password123' } });
 
-  expect(submitButton).not.toBeDisabled();
+  expect(submitButton.disabled).toBe(false);
 });`,
       },
     },

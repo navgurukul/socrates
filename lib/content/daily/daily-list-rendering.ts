@@ -185,26 +185,28 @@ input {
         contents: `import React, { useState } from 'react';
 
 interface Todo {
+  id: number;
   text: string;
-  completed: boolean;
 }
+
+let nextId = 3;
 
 export default function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([
-    { text: 'Buy groceries', completed: false },
-    { text: 'Walk the dog', completed: false },
+    { id: 1, text: 'Buy groceries' },
+    { id: 2, text: 'Walk the dog' },
   ]);
   const [input, setInput] = useState('');
 
   const addTodo = () => {
     if (input.trim()) {
-      setTodos([...todos, { text: input, completed: false }]);
+      setTodos([...todos, { id: nextId++, text: input }]);
       setInput('');
     }
   };
 
-  const deleteTodo = (index: number) => {
-    setTodos(todos.filter((_, i) => i !== index));
+  const deleteTodo = (id: number) => {
+    setTodos(todos.filter((t) => t.id !== id));
   };
 
   return (
@@ -223,7 +225,9 @@ export default function TodoList() {
         {todos.map((todo, index) => (
           <div className="todo-item" key={index}>
             <span>{todo.text}</span>
-            <button className="btn btn-delete" onClick={() => deleteTodo(index)}>
+            {/* Uncontrolled note field: its DOM state must stay with the todo */}
+            <input className="note" aria-label={\`note for \${todo.text}\`} placeholder="note" />
+            <button className="btn btn-delete" onClick={() => deleteTodo(todo.id)}>
               Delete
             </button>
           </div>
@@ -239,42 +243,36 @@ export default function TodoList() {
       file: {
         contents: `import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import TodoList from './TodoList';
 
-test('renders todo list without console warnings', () => {
-  const consoleSpy = vi.spyOn(console, 'error');
+// Using the array index as a React key reuses DOM nodes by position, not by
+// item identity. When a row is removed, the wrong row's uncontrolled DOM state
+// is preserved. Keying by a stable id (todo.id) fixes it.
+test('preserves per-item input state across deletion (stable keys)', () => {
   render(<TodoList />);
-  
-  // Should not have React key warnings
-  expect(consoleSpy).not.toHaveBeenCalledWith(
-    expect.stringContaining('Each child in a list should have a unique "key"')
-  );
-  
-  consoleSpy.mockRestore();
+
+  const note = screen.getByLabelText('note for Walk the dog') as HTMLInputElement;
+  fireEvent.change(note, { target: { value: 'important' } });
+  expect(note.value).toBe('important');
+
+  const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+  fireEvent.click(deleteButtons[0]);
+
+  const remainingNote = screen.getByLabelText(
+    'note for Walk the dog'
+  ) as HTMLInputElement;
+  expect(remainingNote.value).toBe('important');
 });
 
 test('maintains correct order when deleting items', () => {
   render(<TodoList />);
-  
-  const addInput = screen.getByPlaceholderText('Add a todo...');
-  const addButton = screen.getByText('Add');
 
-  fireEvent.change(addInput, { target: { value: 'Task 1' } });
-  fireEvent.click(addButton);
-
-  fireEvent.change(addInput, { target: { value: 'Task 2' } });
-  fireEvent.click(addButton);
-
-  let items = screen.getAllByText(/Task/);
-  expect(items[0].textContent).toBe('Task 1');
-  expect(items[1].textContent).toBe('Task 2');
-
-  const deleteButtons = screen.getAllByText('Delete');
+  const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
   fireEvent.click(deleteButtons[0]);
 
-  items = screen.getAllByText(/Task/);
-  expect(items[0].textContent).toBe('Task 2');
+  const items = screen.getAllByText(/groceries|dog/);
+  expect(items[0].textContent).toBe('Walk the dog');
 });`,
       },
     },

@@ -19,19 +19,28 @@ export function CodeReview({ code, challengeId }: CodeReviewProps) {
   const [review, setReview] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  console.log("Code:", code);
-
   useEffect(() => {
-    // Fetch review immediately on mount
+    // Fetch the review once per challenge. `code` is the (stable) passing
+    // solution snapshot; keying on it would refetch on every parent render.
+    let cancelled = false;
+    setLoading(true);
     fetch("/api/review", {
       method: "POST",
       body: JSON.stringify({ code, challengeId }),
     })
       .then((res) => res.json())
-      .then((data) => setReview(data))
+      .then((data) => {
+        if (!cancelled) setReview(data);
+      })
       .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
-  }, [code, challengeId]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeId]);
 
   if (loading) {
     return (

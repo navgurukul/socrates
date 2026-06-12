@@ -28,7 +28,7 @@ async function LeaderboardContent() {
   ]);
 
   // Get current user ID for highlighting
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

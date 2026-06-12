@@ -12,7 +12,7 @@ export const maxDuration = 30;
  */
 export async function POST(req: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 1. Get current user
     const {

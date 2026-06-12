@@ -137,7 +137,7 @@ export async function getArcProgress(
  * Get all tracks with progress information
  */
 export async function getTracksWithProgress(): Promise<TrackWithProgress[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -169,7 +169,7 @@ export async function getTracksWithProgress(): Promise<TrackWithProgress[]> {
  * Get detailed track information with arcs and battles
  */
 export async function getTrackDetail(trackId: string): Promise<TrackDetailData | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

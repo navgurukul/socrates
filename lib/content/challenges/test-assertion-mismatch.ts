@@ -92,7 +92,7 @@ export default function Status({ online = false }: { online?: boolean }) {
   return (
     <div>
       <span data-testid="status">
-        {online ? "Online" : "Offline"}
+        {online ? "online" : "offline"}
       </span>
     </div>
   );
@@ -108,7 +108,7 @@ import Status from './Status';
 
 test('shows correct status text', () => {
   render(<Status online={true} />);
-  expect(screen.getByTestId('status').textContent).toBe('ONLINE');
+  expect(screen.getByTestId('status').textContent).toBe('Online');
 });`,
       },
     },

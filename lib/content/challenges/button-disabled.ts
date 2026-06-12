@@ -259,18 +259,18 @@ import RegistrationForm from './RegistrationForm';
 test('enables submit button when form is valid', () => {
   render(<RegistrationForm />);
   
-  const submitBtn = screen.getByTestId('submit-btn');
-  expect(submitBtn).toBeDisabled();
-  
+  const submitBtn = screen.getByTestId('submit-btn') as HTMLButtonElement;
+  expect(submitBtn.disabled).toBe(true);
+
   const emailInput = screen.getByLabelText(/email/i);
   const passwordInput = screen.getByLabelText(/^password/i);
   const confirmInput = screen.getByLabelText(/confirm/i);
-  
+
   fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
   fireEvent.change(passwordInput, { target: { value: 'password123' } });
   fireEvent.change(confirmInput, { target: { value: 'password123' } });
-  
-  expect(submitBtn).not.toBeDisabled();
+
+  expect(submitBtn.disabled).toBe(false);
 });`,
       },
     },

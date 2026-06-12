@@ -9,6 +9,7 @@ import {
   userActivity,
 } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { getAllBattlesMeta } from "@/lib/content/registry";
 import { eq, and, sql, desc, gte } from "drizzle-orm";
 
 // ============================================
@@ -54,7 +55,7 @@ export interface UserProfileData {
  * Fetch complete user profile data including streaks, insights, and activity
  */
 export async function getUserProfile(): Promise<UserProfileData | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
@@ -191,9 +192,9 @@ async function getBattleStats(userId: string): Promise<{
 
     const completedBattles = completedResult[0]?.count || 0;
 
-    // For now, totalBattles is the same as completed
-    // In future, this could query available challenges from registry
-    const totalBattles = completedBattles;
+    // Total available battles comes from the content registry, not the count of
+    // completed ones (which made completionRate always 100%).
+    const totalBattles = getAllBattlesMeta().length;
 
     const completionRate =
       totalBattles > 0

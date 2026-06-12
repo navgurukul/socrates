@@ -101,7 +101,7 @@ function getYesterday(dateStr: string): string {
 export async function getTodayDailyBattle(
   timezoneOffset?: number
 ): Promise<DailyBattleData | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -166,7 +166,7 @@ export async function completeDailyBattle(
   challengeId: string,
   timezoneOffset?: number
 ): Promise<{ success: boolean; streak?: UserStreakData; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -302,7 +302,7 @@ async function updateUserStreak(
  * Get user's current streak data
  */
 export async function getUserStreak(): Promise<UserStreakData | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -339,7 +339,7 @@ export async function getUserStreak(): Promise<UserStreakData | null> {
 export async function getDailyBattleHistory(
   days: number = 7
 ): Promise<DailyProgressEntry[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -374,7 +374,7 @@ export async function getDailyBattlesForCarousel(
   futureCount: number = 3,
   timezoneOffset?: number
 ): Promise<DailyBattleCarouselItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

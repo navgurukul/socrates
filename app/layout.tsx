@@ -30,10 +30,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-white`}
       >
-        {/* Enable React Strict Mode for development best practices */}
-        <React.StrictMode>
-          <AuthProvider>{children}</AuthProvider>
-        </React.StrictMode>
+        {/* Strict Mode is enabled globally via next.config (reactStrictMode) */}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
