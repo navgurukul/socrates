@@ -9,7 +9,7 @@ import { getVersusLeaderboard } from "@/lib/actions/versus";
 import { PageContainer, PageNavSection, PageHeader } from "@/components/common";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Trophy, Flame, Swords } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 
 export const metadata = {
   title: "Leaderboard | Bug Battle Arena",
@@ -28,10 +28,7 @@ async function LeaderboardContent() {
   ]);
 
   // Get current user ID for highlighting
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const currentUserId = user?.id;
 
   return (

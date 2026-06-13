@@ -1,6 +1,6 @@
 import { streamText, convertToModelMessages, UIMessage } from "ai";
 import { models } from "@/lib/ai/models";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { retrieveUserInsights } from "@/lib/ai/retrieval";
 
 /**
@@ -34,10 +34,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   try {
     // Require an authenticated user — gates cost/abuse of the AI endpoint
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });

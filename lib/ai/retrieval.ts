@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { embeddings, userMemories } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { google } from "@ai-sdk/google";
+import { generateEmbedding } from "@/lib/ai/models";
 
 /**
  * User insight retrieved from memory
@@ -15,19 +15,6 @@ export interface UserInsight {
   challengeId: string | null;
   createdAt: Date | null;
   similarity?: number;
-}
-
-/**
- * Generate an embedding for a query string (for semantic search)
- */
-async function generateQueryEmbedding(query: string): Promise<number[]> {
-  const embeddingModel = google.textEmbeddingModel("text-embedding-004");
-
-  const { embeddings: embeddingResults } = await embeddingModel.doEmbed({
-    values: [query],
-  });
-
-  return embeddingResults[0];
 }
 
 /**
@@ -49,7 +36,7 @@ export async function retrieveUserInsights(params: {
   try {
     // Strategy 1: If we have a query, do semantic search
     if (queryText) {
-      const queryEmbedding = await generateQueryEmbedding(queryText);
+      const queryEmbedding = await generateEmbedding(queryText);
 
       // Use pgvector cosine similarity search
       const results = await db

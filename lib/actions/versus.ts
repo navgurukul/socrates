@@ -8,7 +8,7 @@ import {
   versusResults,
   userVersusStats,
 } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { getAllBattlesMeta } from "@/lib/content/registry";
 
@@ -86,10 +86,7 @@ export async function createRoom(
   arcId?: string,
   timeLimit: number = 600
 ): Promise<{ roomId: string; joinCode: string } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -149,10 +146,7 @@ export async function joinRoom(joinCode: string): Promise<
     }
   | { error: string }
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -256,10 +250,7 @@ export async function getRoom(roomId: string): Promise<
     }
   | { error: string }
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -315,10 +306,7 @@ export async function getRoom(roomId: string): Promise<
 export async function leaveRoom(
   roomId: string
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -374,10 +362,7 @@ export async function leaveRoom(
 export async function toggleReady(
   roomId: string
 ): Promise<{ isReady: boolean } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -424,10 +409,7 @@ export async function toggleReady(
 export async function startMatch(
   roomId: string
 ): Promise<{ challengePool: string[] } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -517,10 +499,7 @@ export async function submitChallengeResult(
   challengeId: string,
   completionTimeMs: number
 ): Promise<{ rankings: VersusRanking[] } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -634,10 +613,7 @@ async function calculateRankings(roomId: string): Promise<VersusRanking[]> {
 export async function submitMatch(
   roomId: string
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -668,10 +644,7 @@ export async function submitMatch(
 export async function finishMatch(
   roomId: string
 ): Promise<{ finalResults: VersusRanking[] } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };

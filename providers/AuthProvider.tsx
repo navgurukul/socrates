@@ -1,15 +1,11 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import type { User, Session } from "@supabase/supabase-js";
-import type { AuthError } from "@/lib/supabase/types";
+import { useAuth, type AuthUser } from "@/hooks/useAuth";
 
 interface AuthContextValue {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
   loading: boolean;
-  error: AuthError | null;
   signOut: () => Promise<void>;
   signInWithGithub: () => Promise<void>;
 }

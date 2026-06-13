@@ -8,6 +8,13 @@
       "when": 1781285698329,
       "tag": "0000_nifty_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781287946384,
+      "tag": "0001_better_auth_neon",
+      "breakpoints": true
     }
   ]
 }

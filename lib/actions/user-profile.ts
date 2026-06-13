@@ -8,7 +8,7 @@ import {
   progress,
   userActivity,
 } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { getAllBattlesMeta } from "@/lib/content/registry";
 import { eq, and, sql, desc, gte } from "drizzle-orm";
 
@@ -55,10 +55,7 @@ export interface UserProfileData {
  * Fetch complete user profile data including streaks, insights, and activity
  */
 export async function getUserProfile(): Promise<UserProfileData | null> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
 
   if (!authUser) {
     return null;

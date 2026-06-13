@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { progress, userActivity } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { sql } from "drizzle-orm";
 
 export async function submitSuccess(
@@ -10,12 +10,8 @@ export async function submitSuccess(
   code: Record<string, string>,
   attempts: number
 ) {
-  const supabase = await createClient();
-
   // 1. Get Current User
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { error: "Unauthorized" };
 
   try {

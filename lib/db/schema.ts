@@ -11,16 +11,83 @@ import {
   primaryKey,
   bigint,
   unique,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 // 1. Users Table
-// We will link this to Supabase Auth ID later
+// Canonical application user. The id was historically the auth provider's UID;
+// after the move to Better Auth we link auth identities to this row by email
+// (see lib/auth/get-user.ts), so all existing FKs and data stay intact.
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   name: text("name"),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
+// BETTER AUTH (auth identity store)
+// ============================================
+// Managed by Better Auth via the drizzle adapter. SEPARATE from the canonical
+// `users` table above; the link is by email. Property keys MUST match Better
+// Auth's field names; SQL names are prefixed `ba_` to avoid the reserved word
+// `user` and collision with `users`.
+
+export const authUsers = pgTable("ba_users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified")
+    .$defaultFn(() => false)
+    .notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
+});
+
+export const authSessions = pgTable("ba_sessions", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at").notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
+});
+
+export const authAccounts = pgTable("ba_accounts", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const authVerifications = pgTable("ba_verifications", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at").$defaultFn(() => new Date()),
 });
 
 // 2. Challenge Progress

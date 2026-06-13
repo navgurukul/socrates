@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { createLearningInsight } from "@/lib/ai/insights";
 import type { DebugTrace } from "@/lib/store/debugTraceStore";
 
@@ -12,12 +12,8 @@ export const maxDuration = 30;
  */
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-
     // 1. Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {

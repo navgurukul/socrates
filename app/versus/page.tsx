@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { PageContainer, PageNavSection, PageHeader } from "@/components/common";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { VersusLandingContent } from "@/components/versus/VersusLandingContent";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 
 export const metadata = {
   title: "Versus | Bug Battle Arena",
@@ -11,10 +11,7 @@ export const metadata = {
 };
 
 export default async function VersusPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   return (
     <PageContainer withScrollArea>
