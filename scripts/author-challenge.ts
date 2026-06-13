@@ -64,6 +64,7 @@ async function main() {
   console.log(`\nAuthoring ${count} × ${difficulty} battle(s) for arc "${arc.title}" (${arc.trackId})\n`);
 
   const created: string[] = [];
+  const priorSummaries: string[] = [];
 
   for (let n = 0; n < count; n++) {
     let priorFailure: string | undefined;
@@ -78,6 +79,7 @@ async function main() {
           bugConcept: concept,
           existingSlugs: [...existingSlugs, ...created],
           priorFailure,
+          priorSummaries,
         });
 
         if (existingSlugs.includes(candidate.slug) || created.includes(candidate.slug)) {
@@ -111,6 +113,7 @@ async function main() {
         });
         nextOrder++;
         created.push(candidate.slug);
+        priorSummaries.push(`${candidate.title} — ${candidate.bugConcept}`);
         done = true;
         console.log(`  ✓ verified + written: ${out.filePath}\n`);
       } catch (err) {

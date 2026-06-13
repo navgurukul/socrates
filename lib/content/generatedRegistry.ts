@@ -28,5 +28,12 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 8,
     loader: () => import("./challenges/gallery-filter-logic").then((m) => m.galleryFilterLogicBattle),
   },
+    {
+    id: "stale-currency-display",
+    trackId: "frontend-debugging",
+    arcId: "react-and-components",
+    order: 2,
+    loader: () => import("./challenges/stale-currency-display").then((m) => m.staleCurrencyDisplayBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];

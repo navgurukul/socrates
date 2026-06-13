@@ -51,10 +51,17 @@ export interface GenerateInput {
   existingSlugs: string[];
   /** Feedback from a previous failed verification, fed back to fix the attempt. */
   priorFailure?: string;
+  /** "title — bugConcept" of battles already authored, so the model diversifies. */
+  priorSummaries?: string[];
 }
 
 export async function generateCandidate(input: GenerateInput): Promise<Candidate> {
-  const { arc, difficulty, bugConcept, existingSlugs, priorFailure } = input;
+  const { arc, difficulty, bugConcept, existingSlugs, priorFailure, priorSummaries } = input;
+
+  const diversity =
+    priorSummaries && priorSummaries.length
+      ? `\nDIVERSITY — these bugs already exist in this arc. Your bug MUST have a DIFFERENT root cause (not a reskin of the same mistake in a new domain):\n${priorSummaries.map((s) => `  - ${s}`).join("\n")}\nPick a distinct failure category (e.g. stale-state-from-props, missing-cleanup, wrong-dependency-array, mutation-instead-of-copy, incorrect-key, off-by-one, race-condition, wrong-equality-check) NOT represented above.`
+      : "";
 
   const prompt = `You are authoring a debugging challenge ("Battle") for a "LeetCode for debugging" platform.
 
@@ -64,6 +71,7 @@ DIFFICULTY: ${difficulty}
 ${bugConcept ? `REQUIRED BUG CONCEPT: ${bugConcept}` : "Pick a realistic bug that trains the mental model above."}
 
 Already-used slugs in this arc (do NOT reuse or trivially rename): ${existingSlugs.join(", ") || "none"}
+${diversity}
 
 Produce ONE self-contained React + TypeScript component challenge:
 - The component is a single default-exported file (no extra imports beyond 'react').
