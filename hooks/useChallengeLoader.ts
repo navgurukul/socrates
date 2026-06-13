@@ -19,6 +19,8 @@ export function useChallengeLoader(challengeId: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [notFound, setNotFound] = useState(false);
+  // Bumped by retry() to re-run the loader effect.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     // Validate challengeId before proceeding
@@ -29,6 +31,9 @@ export function useChallengeLoader(challengeId: string) {
       return;
     }
 
+    // Guard against a stale fetch resolving after challengeId changed/unmounted.
+    let cancelled = false;
+
     setIsLoading(true);
     setError(null);
     setNotFound(false);
@@ -36,6 +41,7 @@ export function useChallengeLoader(challengeId: string) {
     getChallenge(trimmedId)
       .then(async (data) => {
         const challengeData = data ?? (await getDailyChallenge(trimmedId));
+        if (cancelled) return;
 
         if (!challengeData) {
           setNotFound(true);
@@ -48,6 +54,7 @@ export function useChallengeLoader(challengeId: string) {
         setError(null);
       })
       .catch((err) => {
+        if (cancelled) return;
         logger.error("Failed to load challenge", {
           challengeId: trimmedId,
           error: err,
@@ -56,14 +63,18 @@ export function useChallengeLoader(challengeId: string) {
         setChallenge(null);
       })
       .finally(() => {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       });
-  }, [challengeId, router]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [challengeId, router, reloadKey]);
 
   const retry = () => {
     if (challengeId) {
-      setIsLoading(true);
-      setError(null);
+      // Re-trigger the effect to actually refetch.
+      setReloadKey((k) => k + 1);
     }
   };
 

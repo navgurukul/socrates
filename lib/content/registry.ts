@@ -1,5 +1,6 @@
 import { Battle, Challenge } from "./types";
 import { getArc, getArcsByTrack } from "./arcs";
+import { generatedBattles } from "./generatedRegistry";
 
 // Re-export for convenience
 export { getTrack, getAllTracks } from "./tracks";
@@ -195,6 +196,9 @@ const battleRegistry: BattleEntry[] = [
   // ARC 7: Production-Grade Debugging (Boss Level)
   // (No battles yet - reserved for future content)
   // =============================================
+
+  // AI-authored battles (verified via scripts/author-challenge.ts)
+  ...generatedBattles,
 ];
 
 // Cache for loaded battles

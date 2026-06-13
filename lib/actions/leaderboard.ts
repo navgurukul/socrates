@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { users, userStreaks, progress } from "@/lib/db/schema";
-import { desc, eq, sql, count } from "drizzle-orm";
+import { desc, eq, countDistinct } from "drizzle-orm";
 
 export type LeaderboardEntry = {
   userId: string;
@@ -53,13 +53,13 @@ export async function getSolvedLeaderboard(
       userId: users.id,
       username: users.name,
       avatarUrl: users.avatarUrl,
-      value: count(progress.id).as("solvedCount"),
+      value: countDistinct(progress.challengeId).as("solvedCount"),
     })
     .from(progress)
     .innerJoin(users, eq(progress.userId, users.id))
     .where(eq(progress.status, "completed"))
     .groupBy(users.id)
-    .orderBy(desc(sql`count(${progress.id})`))
+    .orderBy(desc(countDistinct(progress.challengeId)))
     .limit(limit);
 
   // Add rank and ensure value is a number

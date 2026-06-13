@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { progress } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { eq, and, inArray } from "drizzle-orm";
 import { getAllTracks, getTrack } from "@/lib/content/tracks";
 import { getArcsByTrack } from "@/lib/content/arcs";
@@ -137,10 +137,7 @@ export async function getArcProgress(
  * Get all tracks with progress information
  */
 export async function getTracksWithProgress(): Promise<TrackWithProgress[]> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   const tracks = getAllTracks();
   const battlesMeta = getAllBattlesMeta();
@@ -169,10 +166,7 @@ export async function getTracksWithProgress(): Promise<TrackWithProgress[]> {
  * Get detailed track information with arcs and battles
  */
 export async function getTrackDetail(trackId: string): Promise<TrackDetailData | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   const track = getTrack(trackId);
   if (!track) return null;

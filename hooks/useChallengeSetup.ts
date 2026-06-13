@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useRef } from "react";
-import { WebContainer } from "@webcontainer/api";
+import { useCallback, useEffect, useRef } from "react";
+import { WebContainer, WebContainerProcess } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { Challenge } from "@/lib/content/types";
 import { createLogger } from "@/lib/logger";
@@ -60,6 +60,8 @@ export function useChallengeSetup(
   // Track current challenge ID to prevent redundant setup in Strict Mode
   const currentChallengeRef = useRef<string | null>(null);
   const shouldStartServerRef = useRef<boolean>(false);
+  // In-flight npm install process, so it can be killed on unmount.
+  const installProcessRef = useRef<WebContainerProcess | null>(null);
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
@@ -128,15 +130,21 @@ export function useChallengeSetup(
           "npm",
           CONTAINER.NPM_INSTALL_FLAGS as unknown as string[]
         );
+        installProcessRef.current = installProcess;
 
         installProcess.output.pipeTo(
           new WritableStream({
             write(d) {
-              terminal.write(d);
+              try {
+                terminal.write(d);
+              } catch {
+                // terminal may have been disposed on unmount — ignore
+              }
             },
           })
         );
         const exitCode = await installProcess.exit;
+        installProcessRef.current = null;
 
         if (exitCode !== 0) {
           log("\r\n\x1b[31m[System] Dependency installation failed.\x1b[0m");
@@ -161,6 +169,18 @@ export function useChallengeSetup(
     },
     [instance, terminal, log, cleanupChallenge]
   );
+
+  // Kill an in-flight install on unmount so it doesn't keep running detached.
+  useEffect(() => {
+    return () => {
+      try {
+        installProcessRef.current?.kill();
+      } catch {
+        // already exited
+      }
+      installProcessRef.current = null;
+    };
+  }, []);
 
   return {
     setupChallenge,

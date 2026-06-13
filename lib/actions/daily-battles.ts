@@ -7,7 +7,7 @@ import {
   userStreaks,
   userActivity,
 } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { eq, and, desc } from "drizzle-orm";
 import { getDailyChallenge } from "@/lib/content/dailyRegistry";
 import type { Challenge } from "@/lib/content/types";
@@ -101,10 +101,7 @@ function getYesterday(dateStr: string): string {
 export async function getTodayDailyBattle(
   timezoneOffset?: number
 ): Promise<DailyBattleData | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   const todayDate = await getUserLocalDate(timezoneOffset);
 
@@ -166,10 +163,7 @@ export async function completeDailyBattle(
   challengeId: string,
   timezoneOffset?: number
 ): Promise<{ success: boolean; streak?: UserStreakData; error?: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { success: false, error: "Unauthorized" };
@@ -302,10 +296,7 @@ async function updateUserStreak(
  * Get user's current streak data
  */
 export async function getUserStreak(): Promise<UserStreakData | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) return null;
 
@@ -339,10 +330,7 @@ export async function getUserStreak(): Promise<UserStreakData | null> {
 export async function getDailyBattleHistory(
   days: number = 7
 ): Promise<DailyProgressEntry[]> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) return [];
 
@@ -374,10 +362,7 @@ export async function getDailyBattlesForCarousel(
   futureCount: number = 3,
   timezoneOffset?: number
 ): Promise<DailyBattleCarouselItem[]> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   const todayDate = await getUserLocalDate(timezoneOffset);
   const today = new Date(todayDate);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { createLogger } from "@/lib/logger";
@@ -29,6 +29,8 @@ export function useDevServer(
   // Track if we've already set up the server listener to prevent duplicates
   const hasServerListenerRef = useRef(false);
   const serverProcessRef = useRef<DevServerProcess | null>(null);
+  // Unsubscribe handle for the "server-ready" listener so we can detach it.
+  const serverReadyOffRef = useRef<(() => void) | null>(null);
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
@@ -42,9 +44,10 @@ export function useDevServer(
     }
 
     try {
-      // 1. Only set up listener once per instance to prevent duplicates
+      // 1. Only set up listener once per instance to prevent duplicates.
+      //    Keep the unsubscribe handle so cleanup can detach it.
       if (!hasServerListenerRef.current) {
-        instance.on("server-ready", (port, url) => {
+        serverReadyOffRef.current = instance.on("server-ready", (port, url) => {
           logger.debug(`Server ready on port ${port}: ${url}`);
           setPreviewUrl(url); // Save the internal URL
         });
@@ -85,6 +88,22 @@ export function useDevServer(
 
   const refreshPreview = useCallback(() => {
     setIframeKey((prev) => prev + 1);
+  }, []);
+
+  // Kill the dev server process and detach the listener on unmount so we don't
+  // leak the running `npm run dev` (and its port) across battle switches.
+  useEffect(() => {
+    return () => {
+      try {
+        serverProcessRef.current?.kill();
+      } catch {
+        // process may already be dead
+      }
+      serverProcessRef.current = null;
+      serverReadyOffRef.current?.();
+      serverReadyOffRef.current = null;
+      hasServerListenerRef.current = false;
+    };
   }, []);
 
   return {

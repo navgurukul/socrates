@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# db dumps / restores (contain secrets + user data)
+*.backup.gz
+restore_data.sql
+
+# challenge-authoring verify cache (installed node_modules)
+scripts/.authoring-cache/

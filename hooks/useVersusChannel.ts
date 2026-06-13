@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
+import * as Ably from "ably";
 import { useVersusStore, VersusRanking } from "@/lib/store/versus-store";
-import { RealtimeChannel } from "@supabase/supabase-js";
 
 // ============================================
 // EVENT TYPES
@@ -57,33 +56,42 @@ interface MatchFinishedEvent {
 }
 
 // ============================================
+// ABLY CLIENT (singleton)
+// ============================================
+// One Realtime client per page, authenticated via our token endpoint so the
+// API key stays server-side. Ably echoes a publisher's own messages by default
+// (echoMessages: true), matching the old Supabase `broadcast: { self: true }`.
+
+let ablyClient: Ably.Realtime | undefined;
+
+function getAblyClient(): Ably.Realtime {
+  if (!ablyClient) {
+    ablyClient = new Ably.Realtime({ authUrl: "/api/ably/token" });
+  }
+  return ablyClient;
+}
+
+// ============================================
 // HOOK
 // ============================================
 
 export function useVersusChannel(roomId: string | null) {
-  const supabase = createClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
 
-  const {
-    setStatus,
-    setParticipants,
-    updateParticipant,
-    removeParticipant,
-    startMatch,
-    setRemainingSeconds,
-    setRankings,
-    currentUserId,
-    participants,
-  } = useVersusStore();
+  // Select actions individually — these are stable references in Zustand, so
+  // the subscribe effect below isn't re-run on every state change (e.g. the
+  // per-second time tick), which previously tore down and recreated the channel.
+  const setStatus = useVersusStore((s) => s.setStatus);
+  const updateParticipant = useVersusStore((s) => s.updateParticipant);
+  const removeParticipant = useVersusStore((s) => s.removeParticipant);
+  const startMatch = useVersusStore((s) => s.startMatch);
+  const setRemainingSeconds = useVersusStore((s) => s.setRemainingSeconds);
+  const setRankings = useVersusStore((s) => s.setRankings);
 
-  // Broadcast event to channel
+  // Publish event to channel
   const broadcast = useCallback((event: string, payload: unknown) => {
     if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event,
-        payload,
-      });
+      channelRef.current.publish(event, payload);
     }
   }, []);
 
@@ -91,15 +99,12 @@ export function useVersusChannel(roomId: string | null) {
   useEffect(() => {
     if (!roomId) return;
 
-    const channel = supabase.channel(`versus:${roomId}`, {
-      config: {
-        broadcast: { self: true },
-      },
-    });
+    const client = getAblyClient();
+    const channel = client.channels.get(`versus:${roomId}`);
 
     // Handle participant joined
-    channel.on("broadcast", { event: "participant_joined" }, ({ payload }) => {
-      const event = payload as ParticipantJoinedEvent;
+    channel.subscribe("participant_joined", (msg) => {
+      const event = msg.data as ParticipantJoinedEvent;
       updateParticipant(event.userId, {
         userId: event.userId,
         username: event.username,
@@ -111,26 +116,26 @@ export function useVersusChannel(roomId: string | null) {
     });
 
     // Handle participant left
-    channel.on("broadcast", { event: "participant_left" }, ({ payload }) => {
-      const event = payload as ParticipantLeftEvent;
+    channel.subscribe("participant_left", (msg) => {
+      const event = msg.data as ParticipantLeftEvent;
       removeParticipant(event.userId);
     });
 
     // Handle ready toggled
-    channel.on("broadcast", { event: "ready_toggled" }, ({ payload }) => {
-      const event = payload as ReadyToggledEvent;
+    channel.subscribe("ready_toggled", (msg) => {
+      const event = msg.data as ReadyToggledEvent;
       updateParticipant(event.userId, { isReady: event.isReady });
     });
 
     // Handle match started
-    channel.on("broadcast", { event: "match_started" }, ({ payload }) => {
-      const event = payload as MatchStartedEvent;
+    channel.subscribe("match_started", (msg) => {
+      const event = msg.data as MatchStartedEvent;
       startMatch(event.challengePool, event.startedAt);
     });
 
     // Handle challenge completed
-    channel.on("broadcast", { event: "challenge_completed" }, ({ payload }) => {
-      const event = payload as ChallengeCompletedEvent;
+    channel.subscribe("challenge_completed", (msg) => {
+      const event = msg.data as ChallengeCompletedEvent;
       updateParticipant(event.userId, {
         solved: event.solved,
         totalTimeMs: event.totalTimeMs,
@@ -138,8 +143,11 @@ export function useVersusChannel(roomId: string | null) {
     });
 
     // Handle leaderboard update
-    channel.on("broadcast", { event: "leaderboard_update" }, ({ payload }) => {
-      const event = payload as LeaderboardUpdateEvent;
+    channel.subscribe("leaderboard_update", (msg) => {
+      const event = msg.data as LeaderboardUpdateEvent;
+      // Read currentUserId live so it isn't captured as a stale closure and
+      // doesn't need to be an effect dependency.
+      const currentUserId = useVersusStore.getState().currentUserId;
       const rankingsWithCurrentUser = event.rankings.map((r) => ({
         ...r,
         isCurrentUser: r.userId === currentUserId,
@@ -148,33 +156,29 @@ export function useVersusChannel(roomId: string | null) {
     });
 
     // Handle time sync
-    channel.on("broadcast", { event: "time_sync" }, ({ payload }) => {
-      const event = payload as TimeSyncEvent;
+    channel.subscribe("time_sync", (msg) => {
+      const event = msg.data as TimeSyncEvent;
       setRemainingSeconds(event.remainingSeconds);
     });
 
     // Handle match finished
-    channel.on("broadcast", { event: "match_finished" }, ({ payload }) => {
-      const event = payload as MatchFinishedEvent;
+    channel.subscribe("match_finished", (msg) => {
+      const event = msg.data as MatchFinishedEvent;
       setStatus("finished");
       setRankings(event.results);
     });
 
-    // Subscribe
-    channel.subscribe();
     channelRef.current = channel;
 
     // Cleanup
     return () => {
       channel.unsubscribe();
+      channel.detach();
       channelRef.current = null;
     };
   }, [
     roomId,
-    supabase,
-    currentUserId,
     setStatus,
-    setParticipants,
     updateParticipant,
     removeParticipant,
     startMatch,

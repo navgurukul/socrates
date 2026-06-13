@@ -43,36 +43,6 @@ export function VersusArena({ channel, onMatchEnd }: VersusArenaProps) {
     setStatus,
   } = useVersusStore();
 
-  // Timer countdown
-  useEffect(() => {
-    if (!startedAt || hasEndedRef.current) return;
-
-    const tick = () => {
-      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-      const remaining = Math.max(0, timeLimit - elapsed);
-      setRemainingSeconds(remaining);
-
-      // Broadcast time sync every 5 seconds (host only)
-      if (remaining % 5 === 0) {
-        channel.broadcastTimeSync(remaining);
-      }
-
-      if (remaining <= 0 && !hasEndedRef.current) {
-        hasEndedRef.current = true;
-        handleMatchEnd();
-      }
-    };
-
-    tick();
-    timerRef.current = setInterval(tick, 1000);
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [startedAt, timeLimit, setRemainingSeconds, channel]);
-
   // Handle match end (time expired or early submit)
   const handleMatchEnd = useCallback(async () => {
     if (!roomId) return;
@@ -91,6 +61,41 @@ export function VersusArena({ channel, onMatchEnd }: VersusArenaProps) {
     setStatus("finished");
     onMatchEnd();
   }, [roomId, currentUserId, setRankings, setStatus, channel, onMatchEnd]);
+
+  // Always hold the latest handleMatchEnd so the interval below can call it
+  // without resetting on every dependency change (avoids a stale closure).
+  const handleMatchEndRef = useRef(handleMatchEnd);
+  handleMatchEndRef.current = handleMatchEnd;
+
+  // Timer countdown
+  useEffect(() => {
+    if (!startedAt || hasEndedRef.current) return;
+
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = Math.max(0, timeLimit - elapsed);
+      setRemainingSeconds(remaining);
+
+      // Broadcast time sync every 5 seconds (host only)
+      if (remaining % 5 === 0) {
+        channel.broadcastTimeSync(remaining);
+      }
+
+      if (remaining <= 0 && !hasEndedRef.current) {
+        hasEndedRef.current = true;
+        handleMatchEndRef.current();
+      }
+    };
+
+    tick();
+    timerRef.current = setInterval(tick, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [startedAt, timeLimit, setRemainingSeconds, channel]);
 
   // Handle challenge solved
   const handleChallengeSolved = useCallback(async () => {

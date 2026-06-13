@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
-import { WebContainer } from "@webcontainer/api";
+import { useCallback, useEffect, useRef } from "react";
+import { WebContainer, WebContainerProcess } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { ensureDirectory } from "@/lib/fileUtils";
 import { createLogger } from "@/lib/logger";
@@ -23,6 +23,9 @@ export function useTestRunner(
 ) {
   const setStatus = useBattleStore((state) => state.setStatus);
   const setTestOutput = useBattleStore((state) => state.setTestOutput);
+
+  // Track the in-flight vitest process so we can kill it on unmount.
+  const activeProcessRef = useRef<WebContainerProcess | null>(null);
 
   const log = useCallback(
     (message: string) => terminal?.writeln(message),
@@ -61,19 +64,25 @@ export function useTestRunner(
         const testProcess = await instance.spawn("./node_modules/.bin/vitest", [
           "run",
         ]);
+        activeProcessRef.current = testProcess;
 
         let outputBuffer = ""; // Local buffer to capture stream
 
         testProcess.output.pipeTo(
           new WritableStream({
             write(data) {
-              terminal.write(data); // Write to user screen
+              try {
+                terminal.write(data); // Write to user screen
+              } catch {
+                // terminal may have been disposed on unmount — ignore
+              }
               outputBuffer += data; // Save to buffer
             },
           })
         );
 
         const exitCode = await testProcess.exit;
+        activeProcessRef.current = null;
 
         // Save final buffer to state
         setTestOutput(outputBuffer);
@@ -93,6 +102,18 @@ export function useTestRunner(
     },
     [instance, terminal, log, setStatus, setTestOutput]
   );
+
+  // Kill any in-flight test process on unmount to avoid orphaned vitest runs.
+  useEffect(() => {
+    return () => {
+      try {
+        activeProcessRef.current?.kill();
+      } catch {
+        // already exited
+      }
+      activeProcessRef.current = null;
+    };
+  }, []);
 
   return {
     runTests,

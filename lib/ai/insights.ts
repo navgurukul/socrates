@@ -3,8 +3,7 @@
 import { streamText } from "ai";
 import { db } from "@/lib/db";
 import { userMemories, embeddings } from "@/lib/db/schema";
-import { models } from "@/lib/ai/models";
-import { google } from "@ai-sdk/google";
+import { models, generateEmbedding } from "@/lib/ai/models";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import type { DebugTrace } from "@/lib/store/debugTraceStore";
 
@@ -136,19 +135,6 @@ Examples:
       insight: responseText.trim().substring(0, 200),
     };
   }
-}
-
-/**
- * Generate an embedding for the insight text
- */
-async function generateEmbedding(text: string): Promise<number[]> {
-  const embeddingModel = google.textEmbeddingModel("text-embedding-004");
-
-  const { embeddings: embeddingResults } = await embeddingModel.doEmbed({
-    values: [text],
-  });
-
-  return embeddingResults[0];
 }
 
 /**

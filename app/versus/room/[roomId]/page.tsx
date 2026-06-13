@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { getRoom } from "@/lib/actions/versus";
 import { VersusRoom } from "@/components/versus/VersusRoom";
 
@@ -9,10 +9,7 @@ interface Props {
 
 export default async function VersusRoomPage({ params }: Props) {
   const { roomId } = await params;
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/versus");

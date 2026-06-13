@@ -8,7 +8,7 @@ import {
   versusResults,
   userVersusStats,
 } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-user";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { getAllBattlesMeta } from "@/lib/content/registry";
 
@@ -86,10 +86,7 @@ export async function createRoom(
   arcId?: string,
   timeLimit: number = 600
 ): Promise<{ roomId: string; joinCode: string } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -149,10 +146,7 @@ export async function joinRoom(joinCode: string): Promise<
     }
   | { error: string }
 > {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -172,31 +166,43 @@ export async function joinRoom(joinCode: string): Promise<
       return { error: "Room is no longer accepting players" };
     }
 
-    // Check if already in room
-    const existingParticipant = await db.query.versusParticipants.findFirst({
-      where: and(
-        eq(versusParticipants.roomId, room.id),
-        eq(versusParticipants.userId, user.id)
-      ),
-    });
+    // Add to room if not already a participant. Lock the room row so the
+    // capacity check and insert are serialized — no 5th player can slip in.
+    const capacityResult = await db.transaction(async (tx) => {
+      await tx
+        .select({ id: versusRooms.id })
+        .from(versusRooms)
+        .where(eq(versusRooms.id, room.id))
+        .for("update");
 
-    // Add to room if not already a participant
-    if (!existingParticipant) {
-      // Check room capacity (max 4 players)
-      const participantCount = await db
+      const existingParticipant = await tx.query.versusParticipants.findFirst({
+        where: and(
+          eq(versusParticipants.roomId, room.id),
+          eq(versusParticipants.userId, user.id)
+        ),
+      });
+
+      if (existingParticipant) return { ok: true as const };
+
+      const [{ count }] = await tx
         .select({ count: sql<number>`count(*)` })
         .from(versusParticipants)
         .where(eq(versusParticipants.roomId, room.id));
 
-      if (Number(participantCount[0].count) >= 4) {
-        return { error: "Room is full" };
+      if (Number(count) >= 4) {
+        return { ok: false as const, error: "Room is full" };
       }
 
-      await db.insert(versusParticipants).values({
+      await tx.insert(versusParticipants).values({
         roomId: room.id,
         userId: user.id,
         status: "joined",
       });
+      return { ok: true as const };
+    });
+
+    if (!capacityResult.ok) {
+      return { error: capacityResult.error };
     }
 
     // Fetch all participants with user info
@@ -244,10 +250,7 @@ export async function getRoom(roomId: string): Promise<
     }
   | { error: string }
 > {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -303,10 +306,7 @@ export async function getRoom(roomId: string): Promise<
 export async function leaveRoom(
   roomId: string
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -362,10 +362,7 @@ export async function leaveRoom(
 export async function toggleReady(
   roomId: string
 ): Promise<{ isReady: boolean } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -412,10 +409,7 @@ export async function toggleReady(
 export async function startMatch(
   roomId: string
 ): Promise<{ challengePool: string[] } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -442,6 +436,11 @@ export async function startMatch(
     const participants = await db.query.versusParticipants.findMany({
       where: eq(versusParticipants.roomId, roomId),
     });
+
+    // A versus match needs at least two players.
+    if (participants.length < 2) {
+      return { error: "Need at least 2 players to start" };
+    }
 
     const allReady = participants.every(
       (p) => p.status === "ready" || p.userId === user.id
@@ -500,10 +499,7 @@ export async function submitChallengeResult(
   challengeId: string,
   completionTimeMs: number
 ): Promise<{ rankings: VersusRanking[] } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -523,24 +519,59 @@ export async function submitChallengeResult(
       return { error: "Challenge not in pool" };
     }
 
-    // Update participant stats
-    await db
-      .update(versusParticipants)
-      .set({
-        challengesSolved: sql`${versusParticipants.challengesSolved} + 1`,
-        totalTimeMs: sql`${versusParticipants.totalTimeMs} + ${completionTimeMs}`,
-      })
-      .where(
-        and(
-          eq(versusParticipants.roomId, roomId),
-          eq(versusParticipants.userId, user.id)
+    // Clamp client-supplied timing to the match window — can't be negative or
+    // larger than the room's time limit, which caps score forgery.
+    const safeTimeMs = Math.max(
+      0,
+      Math.min(Number(completionTimeMs) || 0, room.timeLimit * 1000)
+    );
+
+    // Credit the solve atomically, guarding against non-participants and
+    // duplicate submissions of the same challenge.
+    await db.transaction(async (tx) => {
+      const [participant] = await tx
+        .select()
+        .from(versusParticipants)
+        .where(
+          and(
+            eq(versusParticipants.roomId, roomId),
+            eq(versusParticipants.userId, user.id)
+          )
         )
-      );
+        .for("update");
+
+      if (!participant || participant.status !== "playing") {
+        throw new Error("NOT_A_PLAYER");
+      }
+
+      const solved = participant.solvedChallenges ?? [];
+      if (solved.includes(challengeId)) {
+        // Already credited — no-op, keeps scores honest on retries.
+        return;
+      }
+
+      await tx
+        .update(versusParticipants)
+        .set({
+          challengesSolved: sql`${versusParticipants.challengesSolved} + 1`,
+          totalTimeMs: sql`${versusParticipants.totalTimeMs} + ${safeTimeMs}`,
+          solvedChallenges: [...solved, challengeId],
+        })
+        .where(
+          and(
+            eq(versusParticipants.roomId, roomId),
+            eq(versusParticipants.userId, user.id)
+          )
+        );
+    });
 
     // Calculate and return current rankings
     const rankings = await calculateRankings(roomId);
     return { rankings };
   } catch (error) {
+    if (error instanceof Error && error.message === "NOT_A_PLAYER") {
+      return { error: "You are not an active player in this match" };
+    }
     console.error("Error submitting result:", error);
     return { error: "Failed to submit result" };
   }
@@ -582,10 +613,7 @@ async function calculateRankings(roomId: string): Promise<VersusRanking[]> {
 export async function submitMatch(
   roomId: string
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -616,10 +644,7 @@ export async function submitMatch(
 export async function finishMatch(
   roomId: string
 ): Promise<{ finalResults: VersusRanking[] } | { error: string }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -665,58 +690,73 @@ export async function finishMatch(
     // Calculate final rankings
     const rankings = await calculateRankings(roomId);
 
-    // Store results
-    for (const ranking of rankings) {
-      await db.insert(versusResults).values({
-        roomId,
-        userId: ranking.userId,
-        rank: ranking.rank,
-        challengesSolved: ranking.solved,
-        totalTimeMs: ranking.totalTimeMs,
-      });
+    // Finalize atomically. The room is locked and its status re-checked inside
+    // the transaction, so concurrent finishMatch calls (host + timer expiry)
+    // can't both write results / double-count stats.
+    await db.transaction(async (tx) => {
+      const [locked] = await tx
+        .select()
+        .from(versusRooms)
+        .where(eq(versusRooms.id, roomId))
+        .for("update");
 
-      // Update user stats
-      const isWinner = ranking.rank === 1;
-      const existingStats = await db.query.userVersusStats.findFirst({
-        where: eq(userVersusStats.userId, ranking.userId),
-      });
-
-      if (existingStats) {
-        await db
-          .update(userVersusStats)
-          .set({
-            totalWins: isWinner
-              ? sql`${userVersusStats.totalWins} + 1`
-              : userVersusStats.totalWins,
-            totalMatches: sql`${userVersusStats.totalMatches} + 1`,
-            totalChallengesSolved: sql`${userVersusStats.totalChallengesSolved} + ${ranking.solved}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(userVersusStats.userId, ranking.userId));
-      } else {
-        await db.insert(userVersusStats).values({
-          userId: ranking.userId,
-          totalWins: isWinner ? 1 : 0,
-          totalMatches: 1,
-          totalChallengesSolved: ranking.solved,
-        });
+      if (!locked || locked.status === "finished") {
+        // Another call already finalized this room.
+        return;
       }
-    }
 
-    // Mark room as finished
-    await db
-      .update(versusRooms)
-      .set({
-        status: "finished",
-        finishedAt: new Date(),
-      })
-      .where(eq(versusRooms.id, roomId));
+      for (const ranking of rankings) {
+        // Idempotent: the unique (room_id, user_id) constraint + DoNothing
+        // means a re-run never duplicates a result row.
+        const inserted = await tx
+          .insert(versusResults)
+          .values({
+            roomId,
+            userId: ranking.userId,
+            rank: ranking.rank,
+            challengesSolved: ranking.solved,
+            totalTimeMs: ranking.totalTimeMs,
+          })
+          .onConflictDoNothing({
+            target: [versusResults.roomId, versusResults.userId],
+          })
+          .returning({ id: versusResults.id });
 
-    // Update all participants to finished
-    await db
-      .update(versusParticipants)
-      .set({ status: "finished" })
-      .where(eq(versusParticipants.roomId, roomId));
+        // Only credit aggregate stats when this result was newly recorded.
+        if (inserted.length === 0) continue;
+
+        const isWinner = ranking.rank === 1;
+        await tx
+          .insert(userVersusStats)
+          .values({
+            userId: ranking.userId,
+            totalWins: isWinner ? 1 : 0,
+            totalMatches: 1,
+            totalChallengesSolved: ranking.solved,
+          })
+          .onConflictDoUpdate({
+            target: userVersusStats.userId,
+            set: {
+              totalWins: isWinner
+                ? sql`${userVersusStats.totalWins} + 1`
+                : userVersusStats.totalWins,
+              totalMatches: sql`${userVersusStats.totalMatches} + 1`,
+              totalChallengesSolved: sql`${userVersusStats.totalChallengesSolved} + ${ranking.solved}`,
+              updatedAt: new Date(),
+            },
+          });
+      }
+
+      await tx
+        .update(versusRooms)
+        .set({ status: "finished", finishedAt: new Date() })
+        .where(eq(versusRooms.id, roomId));
+
+      await tx
+        .update(versusParticipants)
+        .set({ status: "finished" })
+        .where(eq(versusParticipants.roomId, roomId));
+    });
 
     return { finalResults: rankings };
   } catch (error) {

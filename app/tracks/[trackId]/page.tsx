@@ -7,9 +7,9 @@ import { getTrackDetail } from "@/lib/actions/track-progress";
 import { PageContainer, PageAuthButton } from "@/components/common";
 
 interface TrackDetailPageProps {
-  params: {
+  params: Promise<{
     trackId: string;
-  };
+  }>;
 }
 
 async function TrackDetailContent({ trackId }: { trackId: string }) {
@@ -46,7 +46,10 @@ async function TrackDetailContent({ trackId }: { trackId: string }) {
   );
 }
 
-export default function TrackDetailPage({ params }: TrackDetailPageProps) {
+export default async function TrackDetailPage({
+  params,
+}: TrackDetailPageProps) {
+  const { trackId } = await params;
   return (
     <PageContainer withScrollArea maxWidth="6xl">
       {/* Auth Button */}
@@ -54,7 +57,7 @@ export default function TrackDetailPage({ params }: TrackDetailPageProps) {
 
       {/* Content */}
       <Suspense fallback={<LoadingScreen fullScreen={false} />}>
-        <TrackDetailContent trackId={params.trackId} />
+        <TrackDetailContent trackId={trackId} />
       </Suspense>
     </PageContainer>
   );
