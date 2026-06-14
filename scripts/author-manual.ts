@@ -104,6 +104,10 @@ function manualBattles(): ManualBattle[] {
     nPlusOneParallelCounts(),
     forEachAsyncFloatingPromise(),
     overBroadCatchSwallowsError(),
+    partialTransferNoRollback(),
+    batchInsertNoTransaction(),
+    writeThroughCacheStale(),
+    ttlCacheNeverExpires(),
   ];
 }
 
@@ -1936,6 +1940,424 @@ Reproduction:
 Expected: A read failure propagates to the caller so the outage is visible; defaults are only used as a base layer for successfully-read config, not as a mask for errors.`,
       bugConcept:
         "Over-broad catch swallows any read error and returns defaults as if valid, hiding outages. Fix removes the swallow so failures propagate.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / transactions battle: partial transfer with no rollback.
+ * The debit succeeds but the credit fails, and the debit is never compensated,
+ * so money vanishes from the source account.
+ */
+function partialTransferNoRollback(): ManualBattle {
+  const buggyContents = `export interface Accounts {
+  debit: (id: string, amount: number) => Promise<void>
+  credit: (id: string, amount: number) => Promise<void>
+}
+
+/**
+ * Moves \`amount\` from one account to another.
+ */
+export async function transfer(
+  accounts: Accounts,
+  from: string,
+  to: string,
+  amount: number
+): Promise<void> {
+  await accounts.debit(from, amount)
+  // BUG: if the credit fails, the debit above is never undone, so the money
+  // disappears from \`from\` without ever reaching \`to\`.
+  await accounts.credit(to, amount)
+}
+`;
+
+  const fixedContents = `export interface Accounts {
+  debit: (id: string, amount: number) => Promise<void>
+  credit: (id: string, amount: number) => Promise<void>
+}
+
+/**
+ * Moves \`amount\` from one account to another.
+ */
+export async function transfer(
+  accounts: Accounts,
+  from: string,
+  to: string,
+  amount: number
+): Promise<void> {
+  await accounts.debit(from, amount)
+  try {
+    await accounts.credit(to, amount)
+  } catch (err) {
+    // Compensate: refund the debit so the transfer is all-or-nothing.
+    await accounts.credit(from, amount)
+    throw err
+  }
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { transfer, type Accounts } from './Bank'
+
+test('a failed credit refunds the debited account', async () => {
+  const ops: string[] = []
+  const accounts: Accounts = {
+    debit: vi.fn(async (id: string) => {
+      ops.push(\`debit \${id}\`)
+    }),
+    credit: vi.fn(async (id: string) => {
+      ops.push(\`credit \${id}\`)
+      if (id === 'B') throw new Error('account frozen')
+    }),
+  }
+
+  await expect(transfer(accounts, 'A', 'B', 100)).rejects.toThrow('account frozen')
+
+  // The debit to A must be compensated by a refund.
+  expect(ops).toEqual(['debit A', 'credit B', 'credit A'])
+})
+`;
+
+  return {
+    arcId: "data-consistency-and-transactions",
+    difficulty: "Hard",
+    candidate: {
+      componentName: "Bank",
+      slug: "partial-transfer-no-rollback",
+      title: "Transfer Loses Money on Failure",
+      description: `Severity: Critical
+Component: transfer
+Context: transfer debits one account and credits another. When the credit step fails (e.g. the destination is frozen), reconciliation shows the source was debited but the destination never received the funds — money vanishes.
+
+Reproduction:
+1. Attempt a transfer where the credit to the destination fails.
+2. The debit from the source has already been applied.
+3. The error propagates but the debit is never undone.
+
+Expected: The transfer is all-or-nothing — if the credit fails, the debit is compensated so balances are unchanged.`,
+      bugConcept:
+        "Debit-then-credit with no compensation: a failed credit leaves the debit applied. Fix refunds the source account on credit failure before rethrowing.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / transactions battle: multi-row insert not wrapped in a transaction.
+ * A mid-batch failure leaves earlier rows committed instead of rolling back.
+ */
+function batchInsertNoTransaction(): ManualBattle {
+  const buggyContents = `export interface Db {
+  insert: (row: string) => Promise<void>
+  transaction: <T>(fn: () => Promise<T>) => Promise<T>
+}
+
+/**
+ * Inserts every row in the batch.
+ */
+export async function insertAll(db: Db, rows: string[]): Promise<void> {
+  // BUG: rows are inserted one by one outside any transaction, so a failure
+  // partway through leaves the earlier rows committed.
+  for (const row of rows) {
+    await db.insert(row)
+  }
+}
+`;
+
+  const fixedContents = `export interface Db {
+  insert: (row: string) => Promise<void>
+  transaction: <T>(fn: () => Promise<T>) => Promise<T>
+}
+
+/**
+ * Inserts every row in the batch.
+ */
+export async function insertAll(db: Db, rows: string[]): Promise<void> {
+  // Wrap the whole batch in a transaction so a mid-batch failure rolls back
+  // everything instead of leaving partial data.
+  await db.transaction(async () => {
+    for (const row of rows) {
+      await db.insert(row)
+    }
+  })
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { insertAll, type Db } from './BatchInsert'
+
+test('the batch is inserted inside a single transaction', async () => {
+  const db: Db = {
+    insert: vi.fn(async (row: string) => {
+      if (row === 'bad') throw new Error('constraint violation')
+    }),
+    transaction: vi.fn(async (fn) => fn()),
+  }
+
+  await expect(insertAll(db, ['ok', 'bad', 'ok2'])).rejects.toThrow(
+    'constraint violation'
+  )
+
+  // The work must run through the transaction wrapper, not as loose inserts.
+  expect(db.transaction).toHaveBeenCalledTimes(1)
+})
+`;
+
+  return {
+    arcId: "data-consistency-and-transactions",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "BatchInsert",
+      slug: "batch-insert-no-transaction",
+      title: "Partial Batch Insert Left Behind",
+      description: `Severity: High
+Component: insertAll
+Context: insertAll writes a batch of rows. When one row violates a constraint partway through, support finds the earlier rows already persisted while the rest are missing — a half-applied batch.
+
+Reproduction:
+1. Insert a batch where a middle row fails validation.
+2. The rows before it are already committed.
+3. The endpoint errors, but the partial data remains.
+
+Expected: The batch is atomic — a failure anywhere rolls back the entire batch so no partial data is persisted.`,
+      bugConcept:
+        "Rows inserted in a loop outside any transaction; a mid-batch failure leaves earlier rows committed. Fix wraps the loop in db.transaction.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / caching battle: write-through cache not invalidated.
+ * Updates write to the DB but leave the cached copy in place, so reads keep
+ * returning the old value.
+ */
+function writeThroughCacheStale(): ManualBattle {
+  const buggyContents = `export interface Db {
+  get: (id: string) => Promise<string>
+  set: (id: string, value: string) => Promise<void>
+}
+
+/**
+ * A read-through cache over a key/value store.
+ */
+export function createUserCache(db: Db) {
+  const cache = new Map<string, string>()
+
+  async function get(id: string): Promise<string> {
+    if (cache.has(id)) return cache.get(id)!
+    const value = await db.get(id)
+    cache.set(id, value)
+    return value
+  }
+
+  async function update(id: string, value: string): Promise<void> {
+    await db.set(id, value)
+    // BUG: the cache still holds the old value, so subsequent reads are stale.
+  }
+
+  return { get, update }
+}
+`;
+
+  const fixedContents = `export interface Db {
+  get: (id: string) => Promise<string>
+  set: (id: string, value: string) => Promise<void>
+}
+
+/**
+ * A read-through cache over a key/value store.
+ */
+export function createUserCache(db: Db) {
+  const cache = new Map<string, string>()
+
+  async function get(id: string): Promise<string> {
+    if (cache.has(id)) return cache.get(id)!
+    const value = await db.get(id)
+    cache.set(id, value)
+    return value
+  }
+
+  async function update(id: string, value: string): Promise<void> {
+    await db.set(id, value)
+    // Keep the cache in sync with the write so reads reflect the new value.
+    cache.set(id, value)
+  }
+
+  return { get, update }
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { createUserCache, type Db } from './UserCache'
+
+test('updating a value invalidates the cached copy', async () => {
+  const store = new Map<string, string>([['u1', 'old']])
+  const db: Db = {
+    get: vi.fn(async (id: string) => store.get(id) ?? ''),
+    set: vi.fn(async (id: string, value: string) => {
+      store.set(id, value)
+    }),
+  }
+  const cache = createUserCache(db)
+
+  expect(await cache.get('u1')).toBe('old') // populate the cache
+  await cache.update('u1', 'new')
+
+  // The next read must reflect the update, not the cached 'old' value.
+  expect(await cache.get('u1')).toBe('new')
+})
+`;
+
+  return {
+    arcId: "caching-and-invalidation",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "UserCache",
+      slug: "write-through-cache-stale",
+      title: "Cache Serves Stale Data After Update",
+      description: `Severity: High
+Component: createUserCache
+Context: createUserCache is a read-through cache over a key/value store. After a value is updated, users keep seeing the old value until the process restarts.
+
+Reproduction:
+1. Read a key (populating the cache).
+2. Update that key to a new value.
+3. Read the key again — it still returns the old value.
+
+Expected: After an update, reads reflect the new value; the write keeps the cache consistent with the store.`,
+      bugConcept:
+        "update writes to the store but never updates/invalidates the cache, so cached reads stay stale. Fix syncs the cache on write.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / caching battle: TTL never enforced.
+ * Cached entries are returned without checking their age, so stale data is
+ * served forever even after the TTL has passed.
+ */
+function ttlCacheNeverExpires(): ManualBattle {
+  const buggyContents = `export type Loader = (key: string) => Promise<string>
+
+interface Entry {
+  value: string
+  storedAt: number
+}
+
+/**
+ * A cache whose entries are meant to expire after \`ttlMs\`.
+ */
+export function createTtlCache(loader: Loader, ttlMs: number) {
+  const cache = new Map<string, Entry>()
+
+  return async function get(key: string): Promise<string> {
+    const entry = cache.get(key)
+    // BUG: a cached entry is returned without checking whether it has expired,
+    // so values are served forever regardless of the TTL.
+    if (entry) return entry.value
+
+    const value = await loader(key)
+    cache.set(key, { value, storedAt: Date.now() })
+    return value
+  }
+}
+`;
+
+  const fixedContents = `export type Loader = (key: string) => Promise<string>
+
+interface Entry {
+  value: string
+  storedAt: number
+}
+
+/**
+ * A cache whose entries expire after \`ttlMs\`.
+ */
+export function createTtlCache(loader: Loader, ttlMs: number) {
+  const cache = new Map<string, Entry>()
+
+  return async function get(key: string): Promise<string> {
+    const entry = cache.get(key)
+    // Serve the cached value only while it is still within its TTL.
+    if (entry && Date.now() - entry.storedAt < ttlMs) return entry.value
+
+    const value = await loader(key)
+    cache.set(key, { value, storedAt: Date.now() })
+    return value
+  }
+}
+`;
+
+  const testContents = `import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { createTtlCache } from './TtlCache'
+
+beforeEach(() => {
+  vi.useFakeTimers()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+test('an entry older than the TTL is reloaded instead of served stale', async () => {
+  let n = 0
+  const loader = vi.fn(async () => \`v\${++n}\`)
+  const get = createTtlCache(loader, 1000)
+
+  expect(await get('k')).toBe('v1') // fresh load, cached at t=0
+
+  vi.advanceTimersByTime(1500) // move past the 1000ms TTL
+
+  expect(await get('k')).toBe('v2') // expired -> reloaded
+  expect(loader).toHaveBeenCalledTimes(2)
+})
+
+test('an entry within the TTL is served from cache', async () => {
+  let n = 0
+  const loader = vi.fn(async () => \`v\${++n}\`)
+  const get = createTtlCache(loader, 1000)
+
+  expect(await get('k')).toBe('v1')
+  vi.advanceTimersByTime(500) // still within TTL
+  expect(await get('k')).toBe('v1')
+  expect(loader).toHaveBeenCalledTimes(1)
+})
+`;
+
+  return {
+    arcId: "caching-and-invalidation",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "TtlCache",
+      slug: "ttl-cache-never-expires",
+      title: "TTL Cache That Never Expires",
+      description: `Severity: High
+Component: createTtlCache
+Context: createTtlCache is meant to cache values for a fixed time-to-live and reload them afterward. In production, values never refresh — the cache serves the first value it ever loaded indefinitely.
+
+Reproduction:
+1. Load a key (cached with a TTL of, say, 1000ms).
+2. Advance well past the TTL.
+3. Read the key again — it still returns the original value and never reloads.
+
+Expected: Once an entry is older than its TTL, the next read reloads it from the source; entries within the TTL are still served from cache.`,
+      bugConcept:
+        "get returns any cached entry without comparing its age to the TTL, so entries never expire. Fix checks Date.now() - storedAt against ttlMs.",
       buggyContents,
       fixedContents,
       testContents,

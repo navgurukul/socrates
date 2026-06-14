@@ -121,6 +121,28 @@ export const errorHandlingArc: Arc = {
   order: 3,
 };
 
+export const transactionsArc: Arc = {
+  id: "data-consistency-and-transactions",
+  trackId: "backend-debugging",
+  title: "Data Consistency & Transactions",
+  description:
+    "Keep multi-step writes all-or-nothing: compensate or roll back partial failures so the data is never left half-updated.",
+  mentalModel:
+    "A sequence of writes is one logical operation; if any step fails, undo the rest or commit nothing at all.",
+  order: 4,
+};
+
+export const cachingArc: Arc = {
+  id: "caching-and-invalidation",
+  trackId: "backend-debugging",
+  title: "Caching & Invalidation",
+  description:
+    "Serve fast without serving stale: invalidate on write and honor expiry so the cache never outlives the truth.",
+  mentalModel:
+    "A cache is a copy that can lie; every write and every TTL is a promise about when that copy must be refreshed.",
+  order: 5,
+};
+
 // ============================================
 // SYSTEM DESIGN FAILURES TRACK ARCS
 // ============================================
@@ -194,6 +216,8 @@ export const allArcs: Arc[] = [
   raceConditionsArc,
   n1QueriesArc,
   errorHandlingArc,
+  transactionsArc,
+  cachingArc,
   // System Design Failures
   memoryLeaksArc,
   // Security

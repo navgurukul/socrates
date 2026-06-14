@@ -203,5 +203,33 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 2,
     loader: () => import("./challenges/over-broad-catch-swallows-error").then((m) => m.overBroadCatchSwallowsErrorBattle),
   },
+    {
+    id: "partial-transfer-no-rollback",
+    trackId: "backend-debugging",
+    arcId: "data-consistency-and-transactions",
+    order: 1,
+    loader: () => import("./challenges/partial-transfer-no-rollback").then((m) => m.partialTransferNoRollbackBattle),
+  },
+    {
+    id: "batch-insert-no-transaction",
+    trackId: "backend-debugging",
+    arcId: "data-consistency-and-transactions",
+    order: 2,
+    loader: () => import("./challenges/batch-insert-no-transaction").then((m) => m.batchInsertNoTransactionBattle),
+  },
+    {
+    id: "write-through-cache-stale",
+    trackId: "backend-debugging",
+    arcId: "caching-and-invalidation",
+    order: 1,
+    loader: () => import("./challenges/write-through-cache-stale").then((m) => m.writeThroughCacheStaleBattle),
+  },
+    {
+    id: "ttl-cache-never-expires",
+    trackId: "backend-debugging",
+    arcId: "caching-and-invalidation",
+    order: 2,
+    loader: () => import("./challenges/ttl-cache-never-expires").then((m) => m.ttlCacheNeverExpiresBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];
