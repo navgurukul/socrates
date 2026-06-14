@@ -126,5 +126,33 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 4,
     loader: () => import("./challenges/show-password-type-toggle").then((m) => m.showPasswordTypeToggleBattle),
   },
+    {
+    id: "controlled-input-no-onchange",
+    trackId: "frontend-debugging",
+    arcId: "react-and-components",
+    order: 5,
+    loader: () => import("./challenges/controlled-input-no-onchange").then((m) => m.controlledInputNoOnchangeBattle),
+  },
+    {
+    id: "cart-zero-render-leak",
+    trackId: "frontend-debugging",
+    arcId: "react-and-components",
+    order: 6,
+    loader: () => import("./challenges/cart-zero-render-leak").then((m) => m.cartZeroRenderLeakBattle),
+  },
+    {
+    id: "loading-spinner-never-clears",
+    trackId: "frontend-debugging",
+    arcId: "async-network-and-effects",
+    order: 4,
+    loader: () => import("./challenges/loading-spinner-never-clears").then((m) => m.loadingSpinnerNeverClearsBattle),
+  },
+    {
+    id: "usememo-stale-deps",
+    trackId: "frontend-debugging",
+    arcId: "performance-and-memory",
+    order: 4,
+    loader: () => import("./challenges/usememo-stale-deps").then((m) => m.usememoStaleDepsBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];

@@ -92,6 +92,10 @@ function manualBattles(): ManualBattle[] {
     labelInputAssociationBroken(),
     accordionAriaExpandedStale(),
     showPasswordTypeToggle(),
+    controlledInputNoOnChange(),
+    cartZeroRenderLeak(),
+    loadingSpinnerNeverClears(),
+    useMemoStaleDeps(),
   ];
 }
 
@@ -841,6 +845,362 @@ Reproduction:
 Expected: Clicking "Show" switches the input to plain text so the value is readable, and "Hide" masks it again.`,
       bugConcept:
         "The reveal toggle only swaps a CSS class while the input keeps type=\"password\", so the value is never actually shown.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * React battle: controlled input with no onChange.
+ * The input has a value bound to state but no onChange handler, so React keeps
+ * resetting it and typing does nothing.
+ */
+function controlledInputNoOnChange(): ManualBattle {
+  const buggyContents = `import React, { useState } from 'react'
+
+export default function NameField() {
+  const [name, setName] = useState('')
+
+  return (
+    <div className="container">
+      <input
+        aria-label="name"
+        value={name}
+        placeholder="Your name"
+        // BUG: no onChange — the value is controlled by state that never
+        // updates, so React resets the field on every keystroke.
+      />
+      <p data-testid="greeting">Hello, {name || 'stranger'}</p>
+    </div>
+  )
+}
+`;
+
+  const fixedContents = `import React, { useState } from 'react'
+
+export default function NameField() {
+  const [name, setName] = useState('')
+
+  return (
+    <div className="container">
+      <input
+        aria-label="name"
+        value={name}
+        placeholder="Your name"
+        onChange={(e) => setName(e.target.value)}
+      />
+      <p data-testid="greeting">Hello, {name || 'stranger'}</p>
+    </div>
+  )
+}
+`;
+
+  const testContents = `import { render, screen, fireEvent } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import NameField from './NameField'
+
+test('typing into the field updates its value and the greeting', () => {
+  render(<NameField />)
+  const input = screen.getByLabelText('name')
+
+  fireEvent.change(input, { target: { value: 'Ada' } })
+
+  expect(input).toHaveValue('Ada')
+  expect(screen.getByTestId('greeting')).toHaveTextContent('Hello, Ada')
+})
+`;
+
+  return {
+    arcId: "react-and-components",
+    difficulty: "Easy",
+    candidate: {
+      componentName: "NameField",
+      slug: "controlled-input-no-onchange",
+      title: "Name Field Won't Accept Typing",
+      description: `Severity: High
+Component: NameField
+Context: NameField lets a user type their name, which is echoed in a greeting below the input. Users report they cannot type anything into the field.
+
+Reproduction:
+1. Render NameField.
+2. Click the input and type "Ada".
+3. The field stays empty and the greeting keeps saying "Hello, stranger".
+
+Expected: Typing updates the field's value and the greeting reflects what was typed.`,
+      bugConcept:
+        "Input is controlled (value from state) but has no onChange handler, so React resets it on every keystroke and the value never changes.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * React battle: the `0 && <JSX>` falsy-render leak.
+ * An empty cart renders a stray "0" because a number is used as the && guard.
+ */
+function cartZeroRenderLeak(): ManualBattle {
+  const buggyContents = `import React from 'react'
+
+export default function CartBadge({ itemCount = 0 }: { itemCount?: number }) {
+  return (
+    <div className="container">
+      <span>Cart</span>
+      {/* BUG: when itemCount is 0, \`0 && ...\` evaluates to 0, which React
+          renders as a stray "0" instead of rendering nothing. */}
+      {itemCount && <span data-testid="badge">{itemCount}</span>}
+    </div>
+  )
+}
+`;
+
+  const fixedContents = `import React from 'react'
+
+export default function CartBadge({ itemCount = 0 }: { itemCount?: number }) {
+  return (
+    <div className="container">
+      <span>Cart</span>
+      {itemCount > 0 && <span data-testid="badge">{itemCount}</span>}
+    </div>
+  )
+}
+`;
+
+  const testContents = `import { render, screen } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import CartBadge from './CartBadge'
+
+test('an empty cart renders no badge and no stray zero', () => {
+  render(<CartBadge itemCount={0} />)
+
+  expect(screen.queryByTestId('badge')).not.toBeInTheDocument()
+  // The "0" must not leak into the DOM.
+  expect(screen.queryByText('0')).not.toBeInTheDocument()
+})
+
+test('a non-empty cart still shows the count', () => {
+  render(<CartBadge itemCount={3} />)
+  expect(screen.getByTestId('badge')).toHaveTextContent('3')
+})
+`;
+
+  return {
+    arcId: "react-and-components",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "CartBadge",
+      slug: "cart-zero-render-leak",
+      title: "Empty Cart Shows a Stray Zero",
+      description: `Severity: Low
+Component: CartBadge
+Context: CartBadge shows a count badge next to the word "Cart" when there are items. When the cart is empty, a lone "0" appears next to "Cart" instead of nothing.
+
+Reproduction:
+1. Render CartBadge with itemCount set to 0.
+2. Observe a stray "0" next to "Cart".
+
+Expected: When the cart is empty, no badge (and no "0") is rendered; the badge only appears when there is at least one item.`,
+      bugConcept:
+        "Uses a number as the && guard (`itemCount && ...`); when itemCount is 0 React renders the 0 instead of nothing. Guard must be a boolean (itemCount > 0).",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * Async battle: loading flag never cleared.
+ * The fetch resolves and data is stored, but setLoading(false) is missing, so
+ * the spinner shows forever.
+ */
+function loadingSpinnerNeverClears(): ManualBattle {
+  const buggyContents = `import React, { useEffect, useState } from 'react'
+
+export default function UserCard() {
+  const [name, setName] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/user')
+      .then((res) => res.json())
+      .then((data) => {
+        setName(data.name)
+        // BUG: loading is never set to false, so the spinner shows forever
+        // even after the data has arrived.
+      })
+  }, [])
+
+  if (loading) return <p data-testid="status">Loading...</p>
+  return <p data-testid="status">{name}</p>
+}
+`;
+
+  const fixedContents = `import React, { useEffect, useState } from 'react'
+
+export default function UserCard() {
+  const [name, setName] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/user')
+      .then((res) => res.json())
+      .then((data) => {
+        setName(data.name)
+        setLoading(false)
+      })
+  }, [])
+
+  if (loading) return <p data-testid="status">Loading...</p>
+  return <p data-testid="status">{name}</p>
+}
+`;
+
+  const testContents = `import { render, screen } from '@testing-library/react'
+import { afterEach, expect, test, vi } from 'vitest'
+import UserCard from './UserCard'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+test('the spinner is replaced by the data once it loads', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ name: 'Grace' }),
+      } as Response)
+    )
+  )
+
+  render(<UserCard />)
+  expect(screen.getByTestId('status')).toHaveTextContent('Loading...')
+
+  // Once the request resolves, the loaded name must replace the spinner.
+  await screen.findByText('Grace')
+})
+`;
+
+  return {
+    arcId: "async-network-and-effects",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "UserCard",
+      slug: "loading-spinner-never-clears",
+      title: "Spinner Never Goes Away",
+      description: `Severity: High
+Component: UserCard
+Context: UserCard fetches a user and shows a "Loading..." spinner until the data arrives. Users report the spinner stays on screen forever even though the network request succeeds.
+
+Reproduction:
+1. Render UserCard with a successful /api/user response.
+2. Wait for the request to resolve.
+3. The component keeps showing "Loading..." and never displays the name.
+
+Expected: When the request resolves, the spinner is replaced by the loaded user's name.`,
+      bugConcept:
+        "Success handler stores the data but never sets loading to false, so the loading branch renders permanently.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * Performance battle: useMemo with an incomplete dependency array.
+ * The memoized total omits taxRate from its deps, so changing the tax rate
+ * does not recompute the total (stale memoized value).
+ */
+function useMemoStaleDeps(): ManualBattle {
+  const buggyContents = `import React, { useMemo, useState } from 'react'
+
+export default function PriceSummary() {
+  const [price] = useState(100)
+  const [taxRate, setTaxRate] = useState(0)
+
+  // BUG: deps omit taxRate, so the memoized total never recomputes when the
+  // tax rate changes — it stays stuck at the no-tax value.
+  const total = useMemo(() => price + price * taxRate, [price])
+
+  return (
+    <div className="container">
+      <input
+        aria-label="tax"
+        type="number"
+        value={taxRate}
+        onChange={(e) => setTaxRate(Number(e.target.value))}
+      />
+      <span data-testid="total">{total}</span>
+    </div>
+  )
+}
+`;
+
+  const fixedContents = `import React, { useMemo, useState } from 'react'
+
+export default function PriceSummary() {
+  const [price] = useState(100)
+  const [taxRate, setTaxRate] = useState(0)
+
+  const total = useMemo(() => price + price * taxRate, [price, taxRate])
+
+  return (
+    <div className="container">
+      <input
+        aria-label="tax"
+        type="number"
+        value={taxRate}
+        onChange={(e) => setTaxRate(Number(e.target.value))}
+      />
+      <span data-testid="total">{total}</span>
+    </div>
+  )
+}
+`;
+
+  const testContents = `import { render, screen, fireEvent } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import PriceSummary from './PriceSummary'
+
+test('the total recomputes when the tax rate changes', () => {
+  render(<PriceSummary />)
+  expect(screen.getByTestId('total')).toHaveTextContent('100')
+
+  fireEvent.change(screen.getByLabelText('tax'), { target: { value: '0.1' } })
+
+  // 100 + 100 * 0.1 = 110
+  expect(screen.getByTestId('total')).toHaveTextContent('110')
+})
+`;
+
+  return {
+    arcId: "performance-and-memory",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "PriceSummary",
+      slug: "usememo-stale-deps",
+      title: "Total Ignores Tax Rate Changes",
+      description: `Severity: High
+Component: PriceSummary
+Context: PriceSummary shows an order total that should include tax. Users report that changing the tax rate does not update the displayed total.
+
+Reproduction:
+1. Render PriceSummary (total shows the pre-tax amount).
+2. Change the tax rate input.
+3. The total does not change.
+
+Expected: The total recomputes whenever the tax rate changes and reflects price plus tax.`,
+      bugConcept:
+        "useMemo dependency array omits taxRate, so the memoized total is never recomputed when the tax rate changes.",
       buggyContents,
       fixedContents,
       testContents,
