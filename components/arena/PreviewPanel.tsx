@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, TerminalSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -14,35 +14,40 @@ interface PreviewPanelProps {
   previewUrl: string | null;
   iframeKey: number;
   onRefresh: () => void;
+  /** Whether this battle ships a live preview. False for tests-only battles. */
+  hasPreview?: boolean;
 }
 
 export const PreviewPanel = memo(function PreviewPanel({
   previewUrl,
   iframeKey,
   onRefresh,
+  hasPreview = true,
 }: PreviewPanelProps) {
   return (
     <div className="h-full w-full relative bg-zinc-900">
       {/* Preview Header with refresh control */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-2 py-1 bg-zinc-900/90 border-b border-zinc-800">
         <span className="text-xs text-zinc-500">Preview</span>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-zinc-400 hover:text-white"
-                onClick={onRefresh}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Reload Preview</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {hasPreview && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-zinc-400 hover:text-white"
+                  onClick={onRefresh}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reload Preview</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {previewUrl ? (
@@ -53,10 +58,21 @@ export const PreviewPanel = memo(function PreviewPanel({
           title="Live Preview"
           sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation"
         />
-      ) : (
+      ) : hasPreview ? (
         <div className="flex h-full flex-col items-center justify-center text-zinc-500 gap-2">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-400" />
           <span className="text-xs">Starting Dev Server...</span>
+        </div>
+      ) : (
+        <div className="flex h-full flex-col items-center justify-center text-zinc-500 gap-2 px-6 text-center">
+          <TerminalSquare className="h-6 w-6 text-zinc-600" />
+          <span className="text-xs font-medium text-zinc-400">
+            No live preview for this challenge
+          </span>
+          <span className="text-xs text-zinc-500">
+            Edit the code, then hit Run Tests — results appear in the terminal
+            below.
+          </span>
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { WebContainer, WebContainerProcess } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { Challenge } from "@/lib/content/types";
+import { battleHasPreview } from "@/lib/content/battle-preview";
 import { createLogger } from "@/lib/logger";
 import { CONTAINER } from "@/lib/config/constants";
 
@@ -156,15 +157,9 @@ export function useChallengeSetup(
 
       log("\r\n\x1b[32m[System] Ready to code.\x1b[0m");
 
-      // Check if challenge has dev script (indicates a preview-able app)
-      const hasViteConfig =
-        "vite.config.js" in challenge.files ||
-        "vite.config.ts" in challenge.files;
-      const packageJson = challenge.files["package.json"]?.file?.contents || "";
-      const hasDevScript = packageJson.includes('"dev"');
-
-      // Return true if dev server should be started, and cache it
-      shouldStartServerRef.current = hasViteConfig || hasDevScript;
+      // Only start a dev server for battles that ship a live preview (Vite app).
+      // Tests-only battles (e.g. backend track) have none.
+      shouldStartServerRef.current = battleHasPreview(challenge.files);
       return shouldStartServerRef.current;
     },
     [instance, terminal, log, cleanupChallenge]
