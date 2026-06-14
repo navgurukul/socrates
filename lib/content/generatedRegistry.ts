@@ -154,5 +154,26 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 4,
     loader: () => import("./challenges/usememo-stale-deps").then((m) => m.usememoStaleDepsBattle),
   },
+    {
+    id: "dedupe-inflight-requests",
+    trackId: "backend-debugging",
+    arcId: "race-conditions",
+    order: 1,
+    loader: () => import("./challenges/dedupe-inflight-requests").then((m) => m.dedupeInflightRequestsBattle),
+  },
+    {
+    id: "lost-update-read-modify-write",
+    trackId: "backend-debugging",
+    arcId: "race-conditions",
+    order: 2,
+    loader: () => import("./challenges/lost-update-read-modify-write").then((m) => m.lostUpdateReadModifyWriteBattle),
+  },
+    {
+    id: "n-plus-1-user-posts",
+    trackId: "backend-debugging",
+    arcId: "n-plus-1-queries",
+    order: 1,
+    loader: () => import("./challenges/n-plus-1-user-posts").then((m) => m.nPlus1UserPostsBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];

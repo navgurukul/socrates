@@ -96,6 +96,10 @@ function manualBattles(): ManualBattle[] {
     cartZeroRenderLeak(),
     loadingSpinnerNeverClears(),
     useMemoStaleDeps(),
+    // Backend track
+    dedupeInflightRequests(),
+    lostUpdateReadModifyWrite(),
+    nPlusOneUserPosts(),
   ];
 }
 
@@ -1205,6 +1209,327 @@ Expected: The total recomputes whenever the tax rate changes and reflects price 
       fixedContents,
       testContents,
       tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * Backend / race-conditions battle: no in-flight request dedup.
+ * A cache stores only resolved values, so concurrent calls for the same key
+ * all miss the cache and each invokes the (expensive) loader.
+ */
+function dedupeInflightRequests(): ManualBattle {
+  const buggyContents = `type Loader<T> = (key: string) => Promise<T>
+
+/**
+ * Wraps a loader so repeated lookups for the same key are cached.
+ */
+export function createCachedLoader<T>(loader: Loader<T>) {
+  const cache = new Map<string, T>()
+
+  // BUG: only RESOLVED values are cached. Two concurrent calls for the same key
+  // both miss the cache (nothing is stored until the await resolves), so the
+  // loader runs once per concurrent caller instead of once per key.
+  return async function get(key: string): Promise<T> {
+    if (cache.has(key)) return cache.get(key)!
+    const value = await loader(key)
+    cache.set(key, value)
+    return value
+  }
+}
+`;
+
+  const fixedContents = `type Loader<T> = (key: string) => Promise<T>
+
+/**
+ * Wraps a loader so repeated lookups for the same key are cached.
+ */
+export function createCachedLoader<T>(loader: Loader<T>) {
+  // Cache the in-flight PROMISE, not just the resolved value, so concurrent
+  // callers for the same key share a single loader invocation.
+  const cache = new Map<string, Promise<T>>()
+
+  return function get(key: string): Promise<T> {
+    const existing = cache.get(key)
+    if (existing) return existing
+    const promise = loader(key)
+    cache.set(key, promise)
+    return promise
+  }
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { createCachedLoader } from './CachedLoader'
+
+test('concurrent lookups for the same key invoke the loader only once', async () => {
+  const loader = vi.fn(async (key: string) => {
+    await Promise.resolve() // simulate async work
+    return key.toUpperCase()
+  })
+  const get = createCachedLoader(loader)
+
+  const [a, b] = await Promise.all([get('x'), get('x')])
+
+  expect(a).toBe('X')
+  expect(b).toBe('X')
+  expect(loader).toHaveBeenCalledTimes(1)
+})
+
+test('different keys each invoke the loader', async () => {
+  const loader = vi.fn(async (key: string) => key.toUpperCase())
+  const get = createCachedLoader(loader)
+
+  await Promise.all([get('a'), get('b')])
+
+  expect(loader).toHaveBeenCalledTimes(2)
+})
+`;
+
+  return {
+    arcId: "race-conditions",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "CachedLoader",
+      slug: "dedupe-inflight-requests",
+      title: "Cache Stampede on Concurrent Loads",
+      description: `Severity: High
+Component: createCachedLoader
+Context: createCachedLoader wraps an expensive loader (e.g. a DB or API call) so repeated lookups for the same key are served from cache. Under load, monitoring shows the underlying loader firing many times for the same key in the same instant.
+
+Reproduction:
+1. Call the wrapped loader twice for the same key at the same time (before the first resolves).
+2. Observe the underlying loader runs once per caller instead of once per key.
+
+Expected: Concurrent lookups for the same key share a single loader call; the loader runs at most once per key while a request is in flight.`,
+      bugConcept:
+        "Cache stores only resolved values, so concurrent callers all miss and each runs the loader. Fix caches the in-flight promise so callers share one invocation.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / race-conditions battle: lost update on read-modify-write.
+ * Deposits run concurrently; each reads the balance then writes back read+amount,
+ * so interleaved reads all see the same starting value and updates are lost.
+ */
+function lostUpdateReadModifyWrite(): ManualBattle {
+  const buggyContents = `export interface BalanceStore {
+  read: () => Promise<number>
+  write: (value: number) => Promise<void>
+}
+
+/**
+ * Applies a series of deposits to a balance store.
+ */
+export async function applyDeposits(
+  store: BalanceStore,
+  deposits: number[]
+): Promise<void> {
+  // BUG: deposits run concurrently. Each does read-then-write, so interleaved
+  // reads all observe the same starting balance and later writes clobber earlier
+  // ones — classic lost update.
+  await Promise.all(
+    deposits.map(async (amount) => {
+      const current = await store.read()
+      await store.write(current + amount)
+    })
+  )
+}
+`;
+
+  const fixedContents = `export interface BalanceStore {
+  read: () => Promise<number>
+  write: (value: number) => Promise<void>
+}
+
+/**
+ * Applies a series of deposits to a balance store.
+ */
+export async function applyDeposits(
+  store: BalanceStore,
+  deposits: number[]
+): Promise<void> {
+  // Serialize the read-modify-write cycles so each deposit observes the result
+  // of the previous one. No two cycles interleave.
+  for (const amount of deposits) {
+    const current = await store.read()
+    await store.write(current + amount)
+  }
+}
+`;
+
+  const testContents = `import { expect, test } from 'vitest'
+import { applyDeposits, type BalanceStore } from './Wallet'
+
+function makeStore(initial = 0): BalanceStore & { current: () => number } {
+  let value = initial
+  return {
+    read: async () => {
+      await Promise.resolve()
+      return value
+    },
+    write: async (v: number) => {
+      await Promise.resolve()
+      value = v
+    },
+    current: () => value,
+  }
+}
+
+test('all deposits are applied without losing updates', async () => {
+  const store = makeStore(0)
+
+  await applyDeposits(store, [10, 20, 30])
+
+  expect(store.current()).toBe(60)
+})
+`;
+
+  return {
+    arcId: "race-conditions",
+    difficulty: "Hard",
+    candidate: {
+      componentName: "Wallet",
+      slug: "lost-update-read-modify-write",
+      title: "Concurrent Deposits Lose Money",
+      description: `Severity: Critical
+Component: applyDeposits
+Context: applyDeposits applies a batch of deposits to an account balance via a read-modify-write against a store. Reconciliation shows the final balance is lower than the sum of deposits — money goes missing under concurrency.
+
+Reproduction:
+1. Apply several deposits, e.g. [10, 20, 30], to a balance starting at 0.
+2. The expected final balance is 60.
+3. The actual final balance is less (only the last write survives).
+
+Expected: Every deposit is reflected in the final balance regardless of timing; applying [10, 20, 30] to 0 yields 60.`,
+      bugConcept:
+        "Read-modify-write cycles run concurrently via Promise.all, so reads all see the same starting balance and writes overwrite each other (lost update). Fix serializes the cycles.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / n+1 battle: per-item queries instead of one batched query.
+ * getUsersWithPosts loops users and queries posts per user (N+1) rather than
+ * fetching all posts in a single batched call.
+ */
+function nPlusOneUserPosts(): ManualBattle {
+  const buggyContents = `export interface Db {
+  getUsers: () => Promise<{ id: number; name: string }[]>
+  getPostsByUser: (userId: number) => Promise<string[]>
+  getPostsByUsers: (userIds: number[]) => Promise<Record<number, string[]>>
+}
+
+export interface UserWithPosts {
+  id: number
+  name: string
+  posts: string[]
+}
+
+/**
+ * Returns every user with their posts attached.
+ */
+export async function getUsersWithPosts(db: Db): Promise<UserWithPosts[]> {
+  const users = await db.getUsers()
+
+  // BUG: N+1 queries — one getPostsByUser call per user. With N users this is
+  // 1 + N round trips to the database.
+  const result: UserWithPosts[] = []
+  for (const user of users) {
+    const posts = await db.getPostsByUser(user.id)
+    result.push({ ...user, posts })
+  }
+  return result
+}
+`;
+
+  const fixedContents = `export interface Db {
+  getUsers: () => Promise<{ id: number; name: string }[]>
+  getPostsByUser: (userId: number) => Promise<string[]>
+  getPostsByUsers: (userIds: number[]) => Promise<Record<number, string[]>>
+}
+
+export interface UserWithPosts {
+  id: number
+  name: string
+  posts: string[]
+}
+
+/**
+ * Returns every user with their posts attached.
+ */
+export async function getUsersWithPosts(db: Db): Promise<UserWithPosts[]> {
+  const users = await db.getUsers()
+
+  // Fetch all posts in a single batched query keyed by user id.
+  const postsByUser = await db.getPostsByUsers(users.map((u) => u.id))
+  return users.map((user) => ({ ...user, posts: postsByUser[user.id] ?? [] }))
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { getUsersWithPosts, type Db } from './UserService'
+
+test('posts are loaded in one batched query, not one per user', async () => {
+  const getPostsByUser = vi.fn(async (id: number) => [\`post-\${id}\`])
+  const getPostsByUsers = vi.fn(async (ids: number[]) =>
+    Object.fromEntries(ids.map((id) => [id, [\`post-\${id}\`]]))
+  )
+  const db: Db = {
+    getUsers: async () => [
+      { id: 1, name: 'a' },
+      { id: 2, name: 'b' },
+      { id: 3, name: 'c' },
+    ],
+    getPostsByUser,
+    getPostsByUsers,
+  }
+
+  const result = await getUsersWithPosts(db)
+
+  expect(result).toEqual([
+    { id: 1, name: 'a', posts: ['post-1'] },
+    { id: 2, name: 'b', posts: ['post-2'] },
+    { id: 3, name: 'c', posts: ['post-3'] },
+  ])
+  // The per-user query must not be used; a single batched call replaces it.
+  expect(getPostsByUser).not.toHaveBeenCalled()
+  expect(getPostsByUsers).toHaveBeenCalledTimes(1)
+})
+`;
+
+  return {
+    arcId: "n-plus-1-queries",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "UserService",
+      slug: "n-plus-1-user-posts",
+      title: "User List Fires a Query per User",
+      description: `Severity: High
+Component: getUsersWithPosts
+Context: getUsersWithPosts returns all users with their posts attached. As the user count grows, the endpoint slows down dramatically and the database shows a flood of near-identical post queries.
+
+Reproduction:
+1. Load the endpoint with N users in the database.
+2. Inspect the query log.
+3. Observe 1 query for users plus one additional query per user (N+1 total).
+
+Expected: Posts for all users are fetched with a single batched query; total queries stay constant (does not grow per user).`,
+      bugConcept:
+        "Loops users and awaits getPostsByUser per user (N+1). Fix batches into a single getPostsByUsers call keyed by id.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
     },
   };
 }
