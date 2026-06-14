@@ -89,6 +89,9 @@ function manualBattles(): ManualBattle[] {
     optimisticRollbackMissing(),
     staleClosureInterval(),
     listenerLeakDoubleCount(),
+    labelInputAssociationBroken(),
+    accordionAriaExpandedStale(),
+    showPasswordTypeToggle(),
   ];
 }
 
@@ -572,6 +575,272 @@ Reproduction:
 Expected: The count equals the number of notification events dispatched — one increment per event.`,
       bugConcept:
         "Effect re-subscribes a window listener on every render with no cleanup, so handlers accumulate and each event increments the count multiple times.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * Browser/DOM battle: label not associated with its input.
+ * The label's htmlFor doesn't match the input's id, so clicking the label
+ * doesn't focus the field and assistive tech can't pair them.
+ */
+function labelInputAssociationBroken(): ManualBattle {
+  const buggyContents = `import React, { useState } from 'react'
+
+export default function EmailField() {
+  const [value, setValue] = useState('')
+
+  return (
+    <div className="container">
+      <label htmlFor="email">Email</label>
+      <input
+        // BUG: id does not match the label's htmlFor ("email"), so the label
+        // is not associated with this control.
+        id="email-address"
+        type="email"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+    </div>
+  )
+}
+`;
+
+  const fixedContents = `import React, { useState } from 'react'
+
+export default function EmailField() {
+  const [value, setValue] = useState('')
+
+  return (
+    <div className="container">
+      <label htmlFor="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+    </div>
+  )
+}
+`;
+
+  const testContents = `import { render, screen } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import EmailField from './EmailField'
+
+test('the label is associated with the email input', () => {
+  render(<EmailField />)
+
+  // Throws if no control is associated with the "Email" label.
+  const input = screen.getByLabelText('Email')
+  expect(input).toHaveAttribute('type', 'email')
+})
+`;
+
+  return {
+    arcId: "browser-and-dom",
+    difficulty: "Easy",
+    candidate: {
+      componentName: "EmailField",
+      slug: "label-input-association-broken",
+      title: "Email Label Not Linked to Its Input",
+      description: `Severity: Medium
+Component: EmailField
+Context: EmailField renders an "Email" label above a text input. Users on screen readers report the field is announced as unlabeled, and clicking the label text does not focus the input.
+
+Reproduction:
+1. Render EmailField.
+2. Click the "Email" label text.
+3. Note the input does not receive focus; assistive tech finds no label for the field.
+
+Expected: The label is programmatically associated with the input so clicking the label focuses it and screen readers announce the field name.`,
+      bugConcept:
+        "label htmlFor and input id do not match, so the label is not associated with the control (accessibility + click-to-focus break).",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * Browser/DOM battle: aria-expanded hardcoded.
+ * The disclosure content shows/hides correctly, but aria-expanded is a constant
+ * so assistive tech always reports the section as collapsed.
+ */
+function accordionAriaExpandedStale(): ManualBattle {
+  const buggyContents = `import React, { useState } from 'react'
+
+export default function Accordion() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="container">
+      <button
+        className="btn"
+        // BUG: aria-expanded is hardcoded to false; it never reflects \`open\`.
+        aria-expanded={false}
+        onClick={() => setOpen((o) => !o)}
+      >
+        Details
+      </button>
+      {open && <div role="region">Account details here</div>}
+    </div>
+  )
+}
+`;
+
+  const fixedContents = `import React, { useState } from 'react'
+
+export default function Accordion() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="container">
+      <button
+        className="btn"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        Details
+      </button>
+      {open && <div role="region">Account details here</div>}
+    </div>
+  )
+}
+`;
+
+  const testContents = `import { render, screen, fireEvent } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import Accordion from './Accordion'
+
+test('aria-expanded reflects the open state', () => {
+  render(<Accordion />)
+  const toggle = screen.getByRole('button', { name: 'Details' })
+
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+  fireEvent.click(toggle)
+  expect(toggle).toHaveAttribute('aria-expanded', 'true')
+})
+`;
+
+  return {
+    arcId: "browser-and-dom",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "Accordion",
+      slug: "accordion-aria-expanded-stale",
+      title: "Accordion Always Reports Collapsed",
+      description: `Severity: Medium
+Component: Accordion
+Context: Accordion shows a "Details" toggle that reveals a content region. Visually it expands and collapses correctly, but screen reader users always hear "collapsed", even after opening it.
+
+Reproduction:
+1. Render Accordion and inspect the toggle button's aria-expanded value.
+2. Click "Details" to reveal the content.
+3. Re-inspect aria-expanded — it still reports the section as collapsed.
+
+Expected: aria-expanded is "true" when the content is visible and "false" when hidden.`,
+      bugConcept:
+        "aria-expanded is hardcoded to false instead of bound to the open state, so the disclosure's accessible state never updates.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["react", "typescript", "vite"],
+    },
+  };
+}
+
+/**
+ * Browser/DOM battle: show-password toggles a class, not the input type.
+ * The eye toggle flips a className but leaves type="password", so the value
+ * stays masked no matter what.
+ */
+function showPasswordTypeToggle(): ManualBattle {
+  const buggyContents = `import React, { useState } from 'react'
+
+export default function PasswordInput() {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <div className="container">
+      <input
+        aria-label="password"
+        // BUG: only a class changes; type stays "password" so it never reveals.
+        type="password"
+        className={visible ? 'is-visible' : 'is-masked'}
+        defaultValue="hunter2"
+      />
+      <button className="btn" onClick={() => setVisible((v) => !v)}>
+        {visible ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  )
+}
+`;
+
+  const fixedContents = `import React, { useState } from 'react'
+
+export default function PasswordInput() {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <div className="container">
+      <input
+        aria-label="password"
+        type={visible ? 'text' : 'password'}
+        className={visible ? 'is-visible' : 'is-masked'}
+        defaultValue="hunter2"
+      />
+      <button className="btn" onClick={() => setVisible((v) => !v)}>
+        {visible ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  )
+}
+`;
+
+  const testContents = `import { render, screen, fireEvent } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import PasswordInput from './PasswordInput'
+
+test('toggling reveal switches the input type to text', () => {
+  render(<PasswordInput />)
+  const input = screen.getByLabelText('password')
+
+  expect(input).toHaveAttribute('type', 'password')
+
+  fireEvent.click(screen.getByText('Show'))
+  expect(input).toHaveAttribute('type', 'text')
+})
+`;
+
+  return {
+    arcId: "browser-and-dom",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "PasswordInput",
+      slug: "show-password-type-toggle",
+      title: "Show Password Button Does Nothing",
+      description: `Severity: Medium
+Component: PasswordInput
+Context: PasswordInput has a "Show"/"Hide" button meant to reveal the masked value. The button label flips, but the characters stay masked as dots.
+
+Reproduction:
+1. Render PasswordInput with a value entered.
+2. Click "Show". The button label changes to "Hide".
+3. The field still renders masked dots instead of the plain text value.
+
+Expected: Clicking "Show" switches the input to plain text so the value is readable, and "Hide" masks it again.`,
+      bugConcept:
+        "The reveal toggle only swaps a CSS class while the input keeps type=\"password\", so the value is never actually shown.",
       buggyContents,
       fixedContents,
       testContents,

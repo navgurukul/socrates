@@ -105,5 +105,26 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 4,
     loader: () => import("./challenges/listener-leak-double-count").then((m) => m.listenerLeakDoubleCountBattle),
   },
+    {
+    id: "label-input-association-broken",
+    trackId: "frontend-debugging",
+    arcId: "browser-and-dom",
+    order: 2,
+    loader: () => import("./challenges/label-input-association-broken").then((m) => m.labelInputAssociationBrokenBattle),
+  },
+    {
+    id: "accordion-aria-expanded-stale",
+    trackId: "frontend-debugging",
+    arcId: "browser-and-dom",
+    order: 3,
+    loader: () => import("./challenges/accordion-aria-expanded-stale").then((m) => m.accordionAriaExpandedStaleBattle),
+  },
+    {
+    id: "show-password-type-toggle",
+    trackId: "frontend-debugging",
+    arcId: "browser-and-dom",
+    order: 4,
+    loader: () => import("./challenges/show-password-type-toggle").then((m) => m.showPasswordTypeToggleBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];
