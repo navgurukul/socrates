@@ -16,7 +16,8 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "author": "tsx scripts/author-challenge.ts"
+    "author": "tsx scripts/author-challenge.ts",
+    "author:manual": "tsx scripts/author-manual.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.45",
