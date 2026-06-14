@@ -175,5 +175,33 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 1,
     loader: () => import("./challenges/n-plus-1-user-posts").then((m) => m.nPlus1UserPostsBattle),
   },
+    {
+    id: "idempotent-event-processing",
+    trackId: "backend-debugging",
+    arcId: "race-conditions",
+    order: 3,
+    loader: () => import("./challenges/idempotent-event-processing").then((m) => m.idempotentEventProcessingBattle),
+  },
+    {
+    id: "n-plus-1-parallel-counts",
+    trackId: "backend-debugging",
+    arcId: "n-plus-1-queries",
+    order: 2,
+    loader: () => import("./challenges/n-plus-1-parallel-counts").then((m) => m.nPlus1ParallelCountsBattle),
+  },
+    {
+    id: "foreach-async-floating-promise",
+    trackId: "backend-debugging",
+    arcId: "error-handling-and-resilience",
+    order: 1,
+    loader: () => import("./challenges/foreach-async-floating-promise").then((m) => m.foreachAsyncFloatingPromiseBattle),
+  },
+    {
+    id: "over-broad-catch-swallows-error",
+    trackId: "backend-debugging",
+    arcId: "error-handling-and-resilience",
+    order: 2,
+    loader: () => import("./challenges/over-broad-catch-swallows-error").then((m) => m.overBroadCatchSwallowsErrorBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];

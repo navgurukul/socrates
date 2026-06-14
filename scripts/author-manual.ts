@@ -100,6 +100,10 @@ function manualBattles(): ManualBattle[] {
     dedupeInflightRequests(),
     lostUpdateReadModifyWrite(),
     nPlusOneUserPosts(),
+    idempotentEventProcessing(),
+    nPlusOneParallelCounts(),
+    forEachAsyncFloatingPromise(),
+    overBroadCatchSwallowsError(),
   ];
 }
 
@@ -1526,6 +1530,412 @@ Reproduction:
 Expected: Posts for all users are fetched with a single batched query; total queries stay constant (does not grow per user).`,
       bugConcept:
         "Loops users and awaits getPostsByUser per user (N+1). Fix batches into a single getPostsByUsers call keyed by id.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / race-conditions battle: non-idempotent event processing.
+ * The queue is at-least-once, so an event can be redelivered. The processor has
+ * no dedup, so a redelivered event applies its effect twice (double-spend).
+ */
+function idempotentEventProcessing(): ManualBattle {
+  const buggyContents = `export interface Ledger {
+  credit: (amount: number) => void
+}
+
+export interface PaymentEvent {
+  id: string
+  amount: number
+}
+
+/**
+ * Builds a processor for payment events arriving from an at-least-once queue.
+ */
+export function createProcessor(ledger: Ledger) {
+  // BUG: no dedup. At-least-once delivery means the same event id can arrive
+  // more than once, and each delivery credits the ledger again.
+  return function process(event: PaymentEvent) {
+    ledger.credit(event.amount)
+  }
+}
+`;
+
+  const fixedContents = `export interface Ledger {
+  credit: (amount: number) => void
+}
+
+export interface PaymentEvent {
+  id: string
+  amount: number
+}
+
+/**
+ * Builds a processor for payment events arriving from an at-least-once queue.
+ */
+export function createProcessor(ledger: Ledger) {
+  const processed = new Set<string>()
+
+  return function process(event: PaymentEvent) {
+    // Ignore redeliveries: only the first occurrence of an event id applies.
+    if (processed.has(event.id)) return
+    processed.add(event.id)
+    ledger.credit(event.amount)
+  }
+}
+`;
+
+  const testContents = `import { expect, test } from 'vitest'
+import { createProcessor, type Ledger } from './EventProcessor'
+
+function makeLedger() {
+  let balance = 0
+  const ledger: Ledger = { credit: (amount) => (balance += amount) }
+  return { ledger, balance: () => balance }
+}
+
+test('a redelivered event is applied only once', () => {
+  const { ledger, balance } = makeLedger()
+  const process = createProcessor(ledger)
+  const event = { id: 'evt-1', amount: 100 }
+
+  process(event)
+  process(event) // redelivery from the at-least-once queue
+
+  expect(balance()).toBe(100)
+})
+
+test('distinct events are each applied', () => {
+  const { ledger, balance } = makeLedger()
+  const process = createProcessor(ledger)
+
+  process({ id: 'a', amount: 10 })
+  process({ id: 'b', amount: 20 })
+
+  expect(balance()).toBe(30)
+})
+`;
+
+  return {
+    arcId: "race-conditions",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "EventProcessor",
+      slug: "idempotent-event-processing",
+      title: "Redelivered Payment Charged Twice",
+      description: `Severity: Critical
+Component: createProcessor
+Context: The payment processor consumes events from an at-least-once message queue, which can deliver the same event more than once. Customers report being charged twice for a single payment.
+
+Reproduction:
+1. Process a payment event, then process the exact same event again (a redelivery).
+2. Inspect the ledger balance.
+3. The amount has been credited twice.
+
+Expected: Processing is idempotent — a redelivered event with the same id applies its effect at most once.`,
+      bugConcept:
+        "Processor has no dedup, so at-least-once redelivery double-applies an event. Fix tracks processed event ids and ignores repeats.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / n+1 battle: per-item count queries hidden behind Promise.all.
+ * Parallelism masks that it is still N round trips instead of one grouped query.
+ */
+function nPlusOneParallelCounts(): ManualBattle {
+  const buggyContents = `export interface Catalog {
+  getAuthors: () => Promise<{ id: number; name: string }[]>
+  countBooksByAuthor: (authorId: number) => Promise<number>
+  countBooksGrouped: (authorIds: number[]) => Promise<Record<number, number>>
+}
+
+export interface AuthorWithCount {
+  id: number
+  name: string
+  bookCount: number
+}
+
+/**
+ * Returns each author with how many books they have.
+ */
+export async function getAuthorsWithCounts(
+  catalog: Catalog
+): Promise<AuthorWithCount[]> {
+  const authors = await catalog.getAuthors()
+
+  // BUG: one count query per author. Promise.all makes it concurrent, which
+  // hides the N+1 in latency but still hammers the DB with N round trips.
+  return Promise.all(
+    authors.map(async (author) => ({
+      ...author,
+      bookCount: await catalog.countBooksByAuthor(author.id),
+    }))
+  )
+}
+`;
+
+  const fixedContents = `export interface Catalog {
+  getAuthors: () => Promise<{ id: number; name: string }[]>
+  countBooksByAuthor: (authorId: number) => Promise<number>
+  countBooksGrouped: (authorIds: number[]) => Promise<Record<number, number>>
+}
+
+export interface AuthorWithCount {
+  id: number
+  name: string
+  bookCount: number
+}
+
+/**
+ * Returns each author with how many books they have.
+ */
+export async function getAuthorsWithCounts(
+  catalog: Catalog
+): Promise<AuthorWithCount[]> {
+  const authors = await catalog.getAuthors()
+
+  // One grouped query for all authors instead of one per author.
+  const counts = await catalog.countBooksGrouped(authors.map((a) => a.id))
+  return authors.map((author) => ({
+    ...author,
+    bookCount: counts[author.id] ?? 0,
+  }))
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { getAuthorsWithCounts, type Catalog } from './CatalogService'
+
+test('book counts load via a single grouped query, not one per author', async () => {
+  const countBooksByAuthor = vi.fn(async (id: number) => id * 10)
+  const countBooksGrouped = vi.fn(async (ids: number[]) =>
+    Object.fromEntries(ids.map((id) => [id, id * 10]))
+  )
+  const catalog: Catalog = {
+    getAuthors: async () => [
+      { id: 1, name: 'a' },
+      { id: 2, name: 'b' },
+    ],
+    countBooksByAuthor,
+    countBooksGrouped,
+  }
+
+  const result = await getAuthorsWithCounts(catalog)
+
+  expect(result).toEqual([
+    { id: 1, name: 'a', bookCount: 10 },
+    { id: 2, name: 'b', bookCount: 20 },
+  ])
+  expect(countBooksByAuthor).not.toHaveBeenCalled()
+  expect(countBooksGrouped).toHaveBeenCalledTimes(1)
+})
+`;
+
+  return {
+    arcId: "n-plus-1-queries",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "CatalogService",
+      slug: "n-plus-1-parallel-counts",
+      title: "Author Counts Hide an N+1",
+      description: `Severity: High
+Component: getAuthorsWithCounts
+Context: getAuthorsWithCounts lists authors with a book count each. It feels fast in development but the database team flags a burst of identical count queries proportional to the number of authors.
+
+Reproduction:
+1. Load the endpoint with N authors.
+2. Inspect the query log.
+3. Observe one count query per author (N), in addition to the authors query.
+
+Expected: Counts are fetched in a single grouped query; total query count stays constant regardless of how many authors there are.`,
+      bugConcept:
+        "Per-author count query wrapped in Promise.all — concurrent but still N round trips. Fix uses one grouped count query keyed by author id.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / error-handling battle: forEach with an async callback.
+ * The promises float — the function resolves before writes finish and any write
+ * error becomes an unhandled rejection instead of failing the caller.
+ */
+function forEachAsyncFloatingPromise(): ManualBattle {
+  const buggyContents = `export interface Store {
+  put: (item: string) => Promise<void>
+}
+
+/**
+ * Persists every item to the store.
+ */
+export async function saveAll(store: Store, items: string[]): Promise<void> {
+  // BUG: forEach does not await its async callback, so the put promises float.
+  // saveAll resolves immediately and a failed write becomes an unhandled
+  // rejection instead of rejecting saveAll.
+  items.forEach(async (item) => {
+    await store.put(item)
+  })
+}
+`;
+
+  const fixedContents = `export interface Store {
+  put: (item: string) => Promise<void>
+}
+
+/**
+ * Persists every item to the store.
+ */
+export async function saveAll(store: Store, items: string[]): Promise<void> {
+  // Await all writes so saveAll only resolves once they succeed — and rejects
+  // if any of them fail.
+  await Promise.all(items.map((item) => store.put(item)))
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { saveAll, type Store } from './BatchWriter'
+
+test('saveAll rejects when a write fails', async () => {
+  const store: Store = {
+    put: vi.fn(async (item: string) => {
+      if (item === 'b') throw new Error('disk full')
+    }),
+  }
+
+  await expect(saveAll(store, ['a', 'b', 'c'])).rejects.toThrow('disk full')
+})
+`;
+
+  return {
+    arcId: "error-handling-and-resilience",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "BatchWriter",
+      slug: "foreach-async-floating-promise",
+      title: "Batch Save Hides Write Failures",
+      description: `Severity: High
+Component: saveAll
+Context: saveAll persists a batch of items. Callers await it and assume a successful return means everything was written. In production, individual write failures vanish — no error is thrown — yet data is missing afterward.
+
+Reproduction:
+1. Call saveAll with a batch where one item's write rejects.
+2. Await the returned promise.
+3. saveAll resolves successfully even though a write failed.
+
+Expected: If any write fails, saveAll rejects with that error so the caller can handle it.`,
+      bugConcept:
+        "forEach with an async callback floats the put promises; saveAll resolves before they settle and a rejection goes unhandled. Fix awaits Promise.all of the writes.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Backend / error-handling battle: over-broad catch returns a silent fallback.
+ * A transient read failure is swallowed and defaults are returned as if valid,
+ * so the caller cannot tell a real failure from "no overrides".
+ */
+function overBroadCatchSwallowsError(): ManualBattle {
+  const buggyContents = `export interface Source {
+  read: () => Promise<Record<string, unknown>>
+}
+
+/**
+ * Loads config from a source, layered over defaults.
+ */
+export async function loadConfig(
+  source: Source,
+  defaults: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  try {
+    const config = await source.read()
+    return { ...defaults, ...config }
+  } catch {
+    // BUG: a transient read failure is swallowed and defaults are returned as
+    // if they were valid config, so the app silently boots misconfigured.
+    return { ...defaults }
+  }
+}
+`;
+
+  const fixedContents = `export interface Source {
+  read: () => Promise<Record<string, unknown>>
+}
+
+/**
+ * Loads config from a source, layered over defaults.
+ */
+export async function loadConfig(
+  source: Source,
+  defaults: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  // Let read failures propagate; the caller decides how to handle them rather
+  // than silently booting with defaults.
+  const config = await source.read()
+  return { ...defaults, ...config }
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { loadConfig, type Source } from './ConfigLoader'
+
+test('a read failure propagates instead of silently using defaults', async () => {
+  const source: Source = {
+    read: vi.fn(async () => {
+      throw new Error('config service unreachable')
+    }),
+  }
+
+  await expect(loadConfig(source, { timeout: 30 })).rejects.toThrow(
+    'config service unreachable'
+  )
+})
+
+test('loaded config overrides defaults on success', async () => {
+  const source: Source = {
+    read: vi.fn(async () => ({ timeout: 60 })),
+  }
+
+  await expect(
+    loadConfig(source, { timeout: 30, retries: 3 })
+  ).resolves.toEqual({ timeout: 60, retries: 3 })
+})
+`;
+
+  return {
+    arcId: "error-handling-and-resilience",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "ConfigLoader",
+      slug: "over-broad-catch-swallows-error",
+      title: "Config Loader Masks Failures as Defaults",
+      description: `Severity: High
+Component: loadConfig
+Context: loadConfig reads configuration overrides from a source and layers them over defaults. When the config service has a transient outage, the app boots "successfully" but runs entirely on defaults, and the outage goes unnoticed until something breaks downstream.
+
+Reproduction:
+1. Make the source's read reject (simulate an outage).
+2. Call loadConfig.
+3. It resolves with the defaults instead of surfacing the failure.
+
+Expected: A read failure propagates to the caller so the outage is visible; defaults are only used as a base layer for successfully-read config, not as a mask for errors.`,
+      bugConcept:
+        "Over-broad catch swallows any read error and returns defaults as if valid, hiding outages. Fix removes the swallow so failures propagate.",
       buggyContents,
       fixedContents,
       testContents,

@@ -110,6 +110,17 @@ export const n1QueriesArc: Arc = {
   order: 2,
 };
 
+export const errorHandlingArc: Arc = {
+  id: "error-handling-and-resilience",
+  trackId: "backend-debugging",
+  title: "Error Handling & Resilience",
+  description:
+    "Surface and propagate failures instead of swallowing them: floating promises, over-broad catches, and silent fallbacks.",
+  mentalModel:
+    "An error you hide is a bug you ship — let failures surface, and only catch what you can actually recover from.",
+  order: 3,
+};
+
 // ============================================
 // SYSTEM DESIGN FAILURES TRACK ARCS
 // ============================================
@@ -182,6 +193,7 @@ export const allArcs: Arc[] = [
   // Backend Debugging
   raceConditionsArc,
   n1QueriesArc,
+  errorHandlingArc,
   // System Design Failures
   memoryLeaksArc,
   // Security
