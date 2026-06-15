@@ -13,6 +13,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { buildFileTree } from "@/lib/fileUtils";
+import { battleHasPreview } from "@/lib/content/battle-preview";
 import { getLanguageFromFilename } from "@/lib/utils";
 import { useBattle } from "@/hooks/useBattle";
 import { LAYOUT } from "@/lib/config/constants";
@@ -51,6 +52,13 @@ export function BattleArenaContent() {
   const fileTree = useMemo(() => {
     return buildFileTree(Object.keys(fileContents));
   }, [fileContents]);
+
+  // Tests-only battles (e.g. backend track) have no dev server, so the preview
+  // pane should say so instead of spinning forever.
+  const hasPreview = useMemo(
+    () => (challenge ? battleHasPreview(challenge.files) : false),
+    [challenge]
+  );
 
   // Handle user typing
   const handleCodeChange = useCallback(
@@ -134,6 +142,7 @@ export function BattleArenaContent() {
                 previewUrl={previewUrl}
                 iframeKey={0}
                 onRefresh={refreshPreview}
+                hasPreview={hasPreview}
               />
             </ResizablePanel>
 

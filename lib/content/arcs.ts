@@ -110,6 +110,65 @@ export const n1QueriesArc: Arc = {
   order: 2,
 };
 
+export const errorHandlingArc: Arc = {
+  id: "error-handling-and-resilience",
+  trackId: "backend-debugging",
+  title: "Error Handling & Resilience",
+  description:
+    "Surface and propagate failures instead of swallowing them: floating promises, over-broad catches, and silent fallbacks.",
+  mentalModel:
+    "An error you hide is a bug you ship — let failures surface, and only catch what you can actually recover from.",
+  order: 3,
+};
+
+export const transactionsArc: Arc = {
+  id: "data-consistency-and-transactions",
+  trackId: "backend-debugging",
+  title: "Data Consistency & Transactions",
+  description:
+    "Keep multi-step writes all-or-nothing: compensate or roll back partial failures so the data is never left half-updated.",
+  mentalModel:
+    "A sequence of writes is one logical operation; if any step fails, undo the rest or commit nothing at all.",
+  order: 4,
+};
+
+export const cachingArc: Arc = {
+  id: "caching-and-invalidation",
+  trackId: "backend-debugging",
+  title: "Caching & Invalidation",
+  description:
+    "Serve fast without serving stale: invalidate on write and honor expiry so the cache never outlives the truth.",
+  mentalModel:
+    "A cache is a copy that can lie; every write and every TTL is a promise about when that copy must be refreshed.",
+  order: 5,
+};
+
+// ============================================
+// PERFORMANCE DEBUGGING TRACK ARCS
+// ============================================
+
+export const redundantComputationArc: Arc = {
+  id: "redundant-computation",
+  trackId: "performance-debugging",
+  title: "Redundant Computation",
+  description:
+    "Stop doing the same expensive work over and over: hoist loop-invariant setup and memoize repeated calls.",
+  mentalModel:
+    "Compute an expensive result once and reuse it — the cheapest work is the work you don't repeat.",
+  order: 1,
+};
+
+export const algorithmicComplexityArc: Arc = {
+  id: "algorithmic-complexity",
+  trackId: "performance-debugging",
+  title: "Algorithmic Complexity",
+  description:
+    "Keep cost from exploding with input size: trade nested scans for the right data structure, exit early, and fetch only what you need.",
+  mentalModel:
+    "Watch how work grows with N — an O(n²) scan or a full-table fetch is a cliff you walk off as data grows.",
+  order: 2,
+};
+
 // ============================================
 // SYSTEM DESIGN FAILURES TRACK ARCS
 // ============================================
@@ -182,6 +241,12 @@ export const allArcs: Arc[] = [
   // Backend Debugging
   raceConditionsArc,
   n1QueriesArc,
+  errorHandlingArc,
+  transactionsArc,
+  cachingArc,
+  // Performance Debugging
+  redundantComputationArc,
+  algorithmicComplexityArc,
   // System Design Failures
   memoryLeaksArc,
   // Security

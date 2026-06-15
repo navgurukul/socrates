@@ -136,7 +136,67 @@ export function frontendScaffold(title: string, componentName: string): Scaffold
   };
 }
 
-export type SupportedTrack = "frontend-debugging";
+// ── Backend (Node + Vitest) scaffold ─────────────────────────────────────────
+
+const BACKEND_PKG = JSON.stringify(
+  {
+    name: "battle-challenge",
+    private: true,
+    version: "0.0.0",
+    type: "module",
+    scripts: {
+      test: "vitest run",
+    },
+    devDependencies: {
+      vitest: "^0.34.1",
+      typescript: "^5.2.2",
+      "@types/node": "^20.8.0",
+    },
+  },
+  null,
+  2
+);
+
+const BACKEND_VITEST_CONFIG = `import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    globals: true,
+    watch: false,
+  },
+})`;
+
+/**
+ * Backend (Node + TypeScript + Vitest) scaffold. Pure-logic challenges — no
+ * DOM, no React. The learner fixes an exported function/module in src/<Name>.ts
+ * and a readOnly spec in src/<Name>.test.ts drives the verify gate.
+ */
+export function backendScaffold(_title: string, _componentName: string): ScaffoldFiles {
+  const boilerplate: Record<string, FileNode> = {
+    "package.json": { readOnly: true, file: { contents: BACKEND_PKG } },
+    "vitest.config.js": {
+      readOnly: true,
+      hidden: true,
+      file: { contents: BACKEND_VITEST_CONFIG },
+    },
+  };
+
+  return {
+    boilerplate,
+    entryPath: (c) => `src/${c}.ts`,
+    testPath: (c) => `src/${c}.test.ts`,
+    verifyFiles: {
+      "package.json": BACKEND_PKG,
+      "vitest.config.js": BACKEND_VITEST_CONFIG,
+    },
+  };
+}
+
+export type SupportedTrack =
+  | "frontend-debugging"
+  | "backend-debugging"
+  | "performance-debugging";
 
 export function scaffoldForTrack(
   trackId: SupportedTrack,
@@ -146,6 +206,11 @@ export function scaffoldForTrack(
   switch (trackId) {
     case "frontend-debugging":
       return frontendScaffold(title, componentName);
+    case "backend-debugging":
+    // Performance battles are pure-logic Node + Vitest, same toolchain as
+    // backend — they gate on counting wasted work, not on the DOM.
+    case "performance-debugging":
+      return backendScaffold(title, componentName);
     default:
       throw new Error(`No scaffold defined for track "${trackId}"`);
   }
