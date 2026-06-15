@@ -193,7 +193,10 @@ export function backendScaffold(_title: string, _componentName: string): Scaffol
   };
 }
 
-export type SupportedTrack = "frontend-debugging" | "backend-debugging";
+export type SupportedTrack =
+  | "frontend-debugging"
+  | "backend-debugging"
+  | "performance-debugging";
 
 export function scaffoldForTrack(
   trackId: SupportedTrack,
@@ -204,6 +207,9 @@ export function scaffoldForTrack(
     case "frontend-debugging":
       return frontendScaffold(title, componentName);
     case "backend-debugging":
+    // Performance battles are pure-logic Node + Vitest, same toolchain as
+    // backend — they gate on counting wasted work, not on the DOM.
+    case "performance-debugging":
       return backendScaffold(title, componentName);
     default:
       throw new Error(`No scaffold defined for track "${trackId}"`);

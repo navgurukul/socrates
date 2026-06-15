@@ -108,6 +108,12 @@ function manualBattles(): ManualBattle[] {
     batchInsertNoTransaction(),
     writeThroughCacheStale(),
     ttlCacheNeverExpires(),
+    // Performance track
+    hoistLoopInvariantSetup(),
+    memoizeCacheMiss(),
+    dedupeByQuadraticScan(),
+    forEachNoEarlyExit(),
+    paginateOverFetch(),
   ];
 }
 
@@ -2358,6 +2364,486 @@ Reproduction:
 Expected: Once an entry is older than its TTL, the next read reloads it from the source; entries within the TTL are still served from cache.`,
       bugConcept:
         "get returns any cached entry without comparing its age to the TTL, so entries never expire. Fix checks Date.now() - storedAt against ttlMs.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Performance / redundant-computation battle: loop-invariant setup rebuilt
+ * every iteration. The rate index does not change per order, so building it
+ * inside the loop repeats expensive work N times instead of once.
+ */
+function hoistLoopInvariantSetup(): ManualBattle {
+  const buggyContents = `export interface PricingSource {
+  // Expensive: builds a currency -> rate lookup. Should be called once.
+  buildRateIndex: () => Record<string, number>
+}
+
+export interface Order {
+  amount: number
+  currency: string
+}
+
+/**
+ * Sums a batch of orders, converting each amount to USD via the rate index.
+ */
+export function totalInUsd(orders: Order[], source: PricingSource): number {
+  let total = 0
+  for (const order of orders) {
+    // BUG: rebuilds the entire rate index on every iteration. The index is the
+    // same for the whole batch, so this expensive call belongs outside the loop.
+    const rates = source.buildRateIndex()
+    total += order.amount * (rates[order.currency] ?? 1)
+  }
+  return total
+}
+`;
+
+  const fixedContents = `export interface PricingSource {
+  // Expensive: builds a currency -> rate lookup. Should be called once.
+  buildRateIndex: () => Record<string, number>
+}
+
+export interface Order {
+  amount: number
+  currency: string
+}
+
+/**
+ * Sums a batch of orders, converting each amount to USD via the rate index.
+ */
+export function totalInUsd(orders: Order[], source: PricingSource): number {
+  // Build the loop-invariant index once, then reuse it for every order.
+  const rates = source.buildRateIndex()
+  let total = 0
+  for (const order of orders) {
+    total += order.amount * (rates[order.currency] ?? 1)
+  }
+  return total
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { totalInUsd, type PricingSource } from './OrderReport'
+
+test('the rate index is built once, not once per order', () => {
+  const buildRateIndex = vi.fn(() => ({ USD: 1, EUR: 2 }))
+  const source: PricingSource = { buildRateIndex }
+  const orders = [
+    { amount: 10, currency: 'USD' },
+    { amount: 5, currency: 'EUR' },
+    { amount: 3, currency: 'USD' },
+  ]
+
+  const total = totalInUsd(orders, source)
+
+  expect(total).toBe(10 * 1 + 5 * 2 + 3 * 1) // 23
+  // The invariant index must be built a single time for the whole batch.
+  expect(buildRateIndex).toHaveBeenCalledTimes(1)
+})
+`;
+
+  return {
+    arcId: "redundant-computation",
+    difficulty: "Easy",
+    candidate: {
+      componentName: "OrderReport",
+      slug: "hoist-loop-invariant-setup",
+      title: "Order Total Rebuilds Rates Every Iteration",
+      description: `Severity: Medium
+Component: totalInUsd
+Context: totalInUsd converts a batch of orders to USD using a currency rate index supplied by a pricing source. Profiling shows the endpoint's time grows linearly with the number of orders far faster than expected, and the rate index is rebuilt thousands of times per request.
+
+Reproduction:
+1. Sum a batch of N orders.
+2. Count how many times the pricing source builds its rate index.
+3. Observe it is built once per order (N times) instead of once per batch.
+
+Expected: The rate index — which does not change across orders — is built a single time per call, and the total is unchanged.`,
+      bugConcept:
+        "A loop-invariant expensive setup (buildRateIndex) is called inside the per-order loop, so it runs N times. Fix hoists it above the loop to run once.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Performance / redundant-computation battle: a memoize wrapper that computes
+ * before consulting the cache, so repeated calls re-run the expensive function
+ * and the cache saves nothing.
+ */
+function memoizeCacheMiss(): ManualBattle {
+  const buggyContents = `/**
+ * Wraps a pure, single-argument function so repeated calls with the same
+ * argument return a cached result instead of recomputing.
+ */
+export function memoize<A, R>(fn: (arg: A) => R): (arg: A) => R {
+  const cache = new Map<A, R>()
+
+  return (arg: A): R => {
+    // BUG: the expensive fn is invoked on EVERY call before the cache is
+    // consulted, so memoization saves no work — repeats recompute every time.
+    const result = fn(arg)
+    if (!cache.has(arg)) {
+      cache.set(arg, result)
+    }
+    return cache.get(arg)!
+  }
+}
+`;
+
+  const fixedContents = `/**
+ * Wraps a pure, single-argument function so repeated calls with the same
+ * argument return a cached result instead of recomputing.
+ */
+export function memoize<A, R>(fn: (arg: A) => R): (arg: A) => R {
+  const cache = new Map<A, R>()
+
+  return (arg: A): R => {
+    // Check the cache first; only compute on a miss.
+    if (cache.has(arg)) {
+      return cache.get(arg)!
+    }
+    const result = fn(arg)
+    cache.set(arg, result)
+    return result
+  }
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { memoize } from './Memoize'
+
+test('repeated calls with the same argument compute only once', () => {
+  const square = vi.fn((n: number) => n * n)
+  const memoized = memoize(square)
+
+  expect(memoized(4)).toBe(16)
+  expect(memoized(4)).toBe(16)
+  expect(memoized(4)).toBe(16)
+
+  // The underlying function runs once; later calls are served from cache.
+  expect(square).toHaveBeenCalledTimes(1)
+})
+
+test('distinct arguments are each computed', () => {
+  const square = vi.fn((n: number) => n * n)
+  const memoized = memoize(square)
+
+  expect(memoized(2)).toBe(4)
+  expect(memoized(3)).toBe(9)
+
+  expect(square).toHaveBeenCalledTimes(2)
+})
+`;
+
+  return {
+    arcId: "redundant-computation",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "Memoize",
+      slug: "memoize-cache-miss",
+      title: "Memoize That Never Caches",
+      description: `Severity: High
+Component: memoize
+Context: memoize is meant to wrap an expensive pure function so repeated calls with the same argument are served from a cache. In production the wrapped function still runs on every call — the cache provides no speedup at all.
+
+Reproduction:
+1. Wrap an expensive function with memoize.
+2. Call the wrapped function several times with the SAME argument.
+3. Count invocations of the underlying function — it runs on every call, not just the first.
+
+Expected: The underlying function runs at most once per distinct argument; subsequent calls with that argument return the cached result without recomputing.`,
+      bugConcept:
+        "The wrapper calls fn() before checking the cache, so the expensive computation always runs. Fix returns early on a cache hit and only computes on a miss.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Performance / algorithmic-complexity battle: O(n^2) dedup that re-derives an
+ * expensive key in a nested scan instead of computing each key once and using
+ * a Set.
+ */
+function dedupeByQuadraticScan(): ManualBattle {
+  const buggyContents = `/**
+ * Removes duplicate items, treating two items as equal when they share the
+ * same key. \`keyOf\` is expensive (it normalizes/hashes the item), so it
+ * should be evaluated at most once per item.
+ */
+export function dedupeBy<T>(items: T[], keyOf: (item: T) => string): T[] {
+  const out: T[] = []
+  for (const item of items) {
+    // BUG: O(n^2). For every item this re-derives keyOf for the candidate AND
+    // for each already-kept item, so the expensive key function runs far more
+    // than once per item.
+    const isDuplicate = out.some((kept) => keyOf(kept) === keyOf(item))
+    if (!isDuplicate) {
+      out.push(item)
+    }
+  }
+  return out
+}
+`;
+
+  const fixedContents = `/**
+ * Removes duplicate items, treating two items as equal when they share the
+ * same key. \`keyOf\` is expensive (it normalizes/hashes the item), so it
+ * should be evaluated at most once per item.
+ */
+export function dedupeBy<T>(items: T[], keyOf: (item: T) => string): T[] {
+  const seen = new Set<string>()
+  const out: T[] = []
+  for (const item of items) {
+    const key = keyOf(item) // derived exactly once per item
+    if (!seen.has(key)) {
+      seen.add(key)
+      out.push(item)
+    }
+  }
+  return out
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { dedupeBy } from './Dedupe'
+
+test('the expensive key is derived once per item', () => {
+  const keyOf = vi.fn((u: { id: number }) => String(u.id))
+  const items = [{ id: 1 }, { id: 2 }, { id: 1 }, { id: 3 }, { id: 2 }]
+
+  const result = dedupeBy(items, keyOf)
+
+  expect(result.map((u) => u.id)).toEqual([1, 2, 3])
+  // One key derivation per input item — no nested rescanning (O(n), not O(n^2)).
+  expect(keyOf).toHaveBeenCalledTimes(items.length)
+})
+`;
+
+  return {
+    arcId: "algorithmic-complexity",
+    difficulty: "Medium",
+    candidate: {
+      componentName: "Dedupe",
+      slug: "dedupe-by-quadratic-scan",
+      title: "Dedup Recomputes Keys in a Nested Scan",
+      description: `Severity: High
+Component: dedupeBy
+Context: dedupeBy removes duplicate items by an expensive key function. On large inputs the call time grows quadratically and the key function is invoked far more often than there are items.
+
+Reproduction:
+1. Dedup a list of N items where the key function is instrumented.
+2. Count how many times the key function runs.
+3. Observe it runs many more than N times — it is re-derived for every comparison in a nested scan.
+
+Expected: The key for each item is derived exactly once (N total); duplicates are detected in linear time, and the deduped output is unchanged.`,
+      bugConcept:
+        "Dedup uses out.some(... keyOf(kept) === keyOf(item)) — an O(n^2) nested scan that recomputes the expensive key repeatedly. Fix derives each key once and tracks them in a Set.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Performance / algorithmic-complexity battle: forEach can't break, so an
+ * existence check evaluates an expensive predicate for every item even after a
+ * match is found. Fix uses a loop with early return.
+ */
+function forEachNoEarlyExit(): ManualBattle {
+  const buggyContents = `/**
+ * Returns true if any item satisfies the (expensive) predicate.
+ */
+export function anyMatch<T>(
+  items: T[],
+  predicate: (item: T) => boolean
+): boolean {
+  let found = false
+  // BUG: forEach cannot break, so the expensive predicate is evaluated for
+  // EVERY item even once a match has been found — wasted work after the answer
+  // is already known.
+  items.forEach((item) => {
+    if (predicate(item)) {
+      found = true
+    }
+  })
+  return found
+}
+`;
+
+  const fixedContents = `/**
+ * Returns true if any item satisfies the (expensive) predicate.
+ */
+export function anyMatch<T>(
+  items: T[],
+  predicate: (item: T) => boolean
+): boolean {
+  for (const item of items) {
+    // Stop at the first match — no predicate calls past the answer.
+    if (predicate(item)) {
+      return true
+    }
+  }
+  return false
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { anyMatch } from './Search'
+
+test('the search stops at the first match', () => {
+  const isAdmin = vi.fn((u: { role: string }) => u.role === 'admin')
+  const users = [
+    { role: 'user' },
+    { role: 'admin' }, // first match at index 1
+    { role: 'user' },
+    { role: 'user' },
+  ]
+
+  expect(anyMatch(users, isAdmin)).toBe(true)
+  // Only items up to and including the first match are examined (2 of 4).
+  expect(isAdmin).toHaveBeenCalledTimes(2)
+})
+
+test('returns false when nothing matches', () => {
+  const isAdmin = vi.fn((u: { role: string }) => u.role === 'admin')
+  const users = [{ role: 'user' }, { role: 'user' }]
+
+  expect(anyMatch(users, isAdmin)).toBe(false)
+  expect(isAdmin).toHaveBeenCalledTimes(2)
+})
+`;
+
+  return {
+    arcId: "algorithmic-complexity",
+    difficulty: "Easy",
+    candidate: {
+      componentName: "Search",
+      slug: "foreach-no-early-exit",
+      title: "Existence Check Scans the Whole List",
+      description: `Severity: Medium
+Component: anyMatch
+Context: anyMatch reports whether any item passes an expensive predicate (e.g. a permission check). On large collections it stays slow even when a matching item is near the front, and the predicate is evaluated for every element.
+
+Reproduction:
+1. Call anyMatch on a list whose first match is early (say, index 1 of many).
+2. Count predicate invocations.
+3. Observe the predicate runs for every item, not just up to the first match.
+
+Expected: The scan stops as soon as the first matching item is found; the predicate is not evaluated for items past the match. The boolean result is unchanged.`,
+      bugConcept:
+        "Uses Array.forEach, which cannot break, so the predicate runs for all items even after a match. Fix uses a for...of loop that returns true on the first match.",
+      buggyContents,
+      fixedContents,
+      testContents,
+      tech: ["typescript", "node", "vitest"],
+    },
+  };
+}
+
+/**
+ * Performance / algorithmic-complexity battle: pagination that fetches the
+ * entire table then slices in memory. Cost scales with table size, not page
+ * size. Fix requests only the page from the source.
+ */
+function paginateOverFetch(): ManualBattle {
+  const buggyContents = `export interface RowSource {
+  // Loads the ENTIRE table — expensive and grows without bound.
+  fetchAll: () => Promise<number[]>
+  // Loads only the requested window.
+  fetchPage: (offset: number, limit: number) => Promise<number[]>
+}
+
+/**
+ * Returns one page of rows (0-indexed page number).
+ */
+export async function getPage(
+  source: RowSource,
+  page: number,
+  pageSize: number
+): Promise<number[]> {
+  // BUG: fetches every row in the table, then slices in memory. Cost grows with
+  // the table size rather than the page size — a full scan to return a handful
+  // of rows.
+  const all = await source.fetchAll()
+  const start = page * pageSize
+  return all.slice(start, start + pageSize)
+}
+`;
+
+  const fixedContents = `export interface RowSource {
+  // Loads the ENTIRE table — expensive and grows without bound.
+  fetchAll: () => Promise<number[]>
+  // Loads only the requested window.
+  fetchPage: (offset: number, limit: number) => Promise<number[]>
+}
+
+/**
+ * Returns one page of rows (0-indexed page number).
+ */
+export async function getPage(
+  source: RowSource,
+  page: number,
+  pageSize: number
+): Promise<number[]> {
+  // Request only the rows for this page; the source does the windowing.
+  return source.fetchPage(page * pageSize, pageSize)
+}
+`;
+
+  const testContents = `import { expect, test, vi } from 'vitest'
+import { getPage, type RowSource } from './Pagination'
+
+test('only the requested page is fetched, not the whole table', async () => {
+  const table = Array.from({ length: 1000 }, (_, i) => i)
+  const fetchAll = vi.fn(async () => table)
+  const fetchPage = vi.fn(async (offset: number, limit: number) =>
+    table.slice(offset, offset + limit)
+  )
+  const source: RowSource = { fetchAll, fetchPage }
+
+  const result = await getPage(source, 2, 10)
+
+  // Page 2 (0-indexed) of size 10 => rows 20..29.
+  expect(result).toEqual([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
+  // The full-table fetch must not be used.
+  expect(fetchAll).not.toHaveBeenCalled()
+  expect(fetchPage).toHaveBeenCalledWith(20, 10)
+})
+`;
+
+  return {
+    arcId: "algorithmic-complexity",
+    difficulty: "Hard",
+    candidate: {
+      componentName: "Pagination",
+      slug: "paginate-over-fetch",
+      title: "Pagination Loads the Whole Table",
+      description: `Severity: High
+Component: getPage
+Context: getPage returns a single page of rows from a data source that can return either the whole table or a bounded window. As the table grows, paging through it gets slower and memory spikes, even though each page is small.
+
+Reproduction:
+1. Request page 2 of size 10 from a source backing a 1000-row table.
+2. Observe the source's full-table load is invoked and all 1000 rows are pulled into memory before slicing.
+3. Note the cost scales with total rows, not page size.
+
+Expected: Only the requested page is fetched from the source (a bounded window); the full-table load is never used. The returned page is unchanged.`,
+      bugConcept:
+        "getPage calls fetchAll() and slices in memory, so work scales with table size. Fix requests just the window via fetchPage(offset, limit).",
       buggyContents,
       fixedContents,
       testContents,

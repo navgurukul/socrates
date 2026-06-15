@@ -231,5 +231,40 @@ export const generatedBattles: GeneratedBattleEntry[] = [
     order: 2,
     loader: () => import("./challenges/ttl-cache-never-expires").then((m) => m.ttlCacheNeverExpiresBattle),
   },
+    {
+    id: "hoist-loop-invariant-setup",
+    trackId: "performance-debugging",
+    arcId: "redundant-computation",
+    order: 1,
+    loader: () => import("./challenges/hoist-loop-invariant-setup").then((m) => m.hoistLoopInvariantSetupBattle),
+  },
+    {
+    id: "memoize-cache-miss",
+    trackId: "performance-debugging",
+    arcId: "redundant-computation",
+    order: 2,
+    loader: () => import("./challenges/memoize-cache-miss").then((m) => m.memoizeCacheMissBattle),
+  },
+    {
+    id: "dedupe-by-quadratic-scan",
+    trackId: "performance-debugging",
+    arcId: "algorithmic-complexity",
+    order: 1,
+    loader: () => import("./challenges/dedupe-by-quadratic-scan").then((m) => m.dedupeByQuadraticScanBattle),
+  },
+    {
+    id: "foreach-no-early-exit",
+    trackId: "performance-debugging",
+    arcId: "algorithmic-complexity",
+    order: 2,
+    loader: () => import("./challenges/foreach-no-early-exit").then((m) => m.foreachNoEarlyExitBattle),
+  },
+    {
+    id: "paginate-over-fetch",
+    trackId: "performance-debugging",
+    arcId: "algorithmic-complexity",
+    order: 3,
+    loader: () => import("./challenges/paginate-over-fetch").then((m) => m.paginateOverFetchBattle),
+  },
   // GENERATED ENTRIES — appended by scripts/author-challenge.ts
 ];

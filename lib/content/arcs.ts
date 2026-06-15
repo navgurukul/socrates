@@ -144,6 +144,32 @@ export const cachingArc: Arc = {
 };
 
 // ============================================
+// PERFORMANCE DEBUGGING TRACK ARCS
+// ============================================
+
+export const redundantComputationArc: Arc = {
+  id: "redundant-computation",
+  trackId: "performance-debugging",
+  title: "Redundant Computation",
+  description:
+    "Stop doing the same expensive work over and over: hoist loop-invariant setup and memoize repeated calls.",
+  mentalModel:
+    "Compute an expensive result once and reuse it — the cheapest work is the work you don't repeat.",
+  order: 1,
+};
+
+export const algorithmicComplexityArc: Arc = {
+  id: "algorithmic-complexity",
+  trackId: "performance-debugging",
+  title: "Algorithmic Complexity",
+  description:
+    "Keep cost from exploding with input size: trade nested scans for the right data structure, exit early, and fetch only what you need.",
+  mentalModel:
+    "Watch how work grows with N — an O(n²) scan or a full-table fetch is a cliff you walk off as data grows.",
+  order: 2,
+};
+
+// ============================================
 // SYSTEM DESIGN FAILURES TRACK ARCS
 // ============================================
 
@@ -218,6 +244,9 @@ export const allArcs: Arc[] = [
   errorHandlingArc,
   transactionsArc,
   cachingArc,
+  // Performance Debugging
+  redundantComputationArc,
+  algorithmicComplexityArc,
   // System Design Failures
   memoryLeaksArc,
   // Security
